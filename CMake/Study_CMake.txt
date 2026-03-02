@@ -1,0 +1,92 @@
+=====================CMAKE=================
+■ Chức năng:
+CMake là một công cụ tạo hệ thống build để:
+ 
+Quản lý quy trình biên dịch và xây dựng phần mềm,
+Hỗ trợ đa nền tảng (Window/Unix/Linux,..),
+Tạo ra file hướng dẫn dẫn build cho công cụ build như Makefile, build.ninja,...
+Làm việc với nhiều thư viện khác nhau,
+Dễ dàng mở rộng và tự động hóa.
+Nó giúp các project (đặc biệt là Qt) trở nên chuyên nghiệp, dễ bảo trì, dễ phát triển lâu dài.
+ 
+■ Cmake trong QT:
+Tự động phát hiện và tích hợp các module Qt cần thiết (Widgets, Network, Quick, v.v.)
+Dễ dàng quản lý file .ui, .qrc, .ts (giao diện, tài nguyên, dịch đa ngôn ngữ)
+Tích hợp tốt với các công cụ kiểm thử, đóng gói, CI/CD
+Dễ dàng mở rộng ra ngoài Qt, tích hợp thêm nhiều thư viện khác
+Hỗ trợ tốt cho dự án lớn, nhiều người cùng phát triển
+ 
+■ CMakeLists.txt
+cmake_minimum_required(VERSION 3.10)  # Phiên bản tối thiểu của CMake
+project(MyProject)                    # Đặt tên dự án
+add_executable(myapp src/main.cpp)    # Tạo file thực thi từ mã nguồn
+ 
+■ Các lệnh cơ bản
+cmake_minimum_required(VERSION ...)       	: Đặt phiên bản tối thiểu của CMake.
+project(...)                  		: Đặt tên và thiết lập dự án.
+add_executable(name file1 file2 ...)      	: Tạo file thực thi từ các file nguồn.
+add_library(name STATIC file1 ...)      	: Tạo thư viện tĩnh từ các file nguồn.
+  STATIC: Thư viện tĩnh (.a, .lib)
+  SHARED: Thư viện động (.so, .dll, .dylib)
+  MODULE: Thư viện module (plugin)
+  INTERFACE: Không tạo file thư viện, chỉ truyền thuộc tính
+add_library(hello::library ALIAS hello_library)  	: Tạo alias(bí danh) cho thư viện.
+add_subdirectory(dir1)              		: Thêm thư mục con vào quá trình build (Hệ thống sẽ tìm và xử lý file CMakeLists.txt nằm trong thư mục con đó).
+target_link_libraries(target PRIVATE lib1 ...) 		: Liên kết target với các thư viện.
+include_directories(dir1 dir2 ...)       		: Thêm thư mục chứa header vào project.
+target_include_directories(target PRIVATE dir1)  	: Thêm thư mục chứa header cho target chỉ định vào project.
+  PRIVATE: Chỉ cho target đó sử dụng.
+  INTERFACE: Chỉ các target link với target này mới thấy.
+  PUBLIC: Cả target và các target link với nó đều dùng được.
+set(VAR value)                  		: Gán giá trị cho biến VAR.
+install(TARGETS file1 DESTINATION bin)      	: Copy executable vào thư mục thực thi.
+install(TARGETS file2 LIBRARY DESTINATION lib)  	: Copy thư viện động vào thư mục thư viện.
+install(DIRECTORY dir1 DESTINATION include)    	: Copy thư mục header vào thư mục dành cho file header.
+install(FILES file1 DESTINATION etc)      		: Copy file cấu hình vào thư mục cấu hình.
+find_package(lib <version> [REQUIRED] [COMPONENTS comp1 comp2])  : Tìm, cấu hình thư viện cho project.
+message("...")                  		: In ra màn hình khi chạy cmake ..
+option(BUILD_TESTS "Build the test suite" ON)  	: Tạo và cấu hình flag(BUILD_TESTS) ON/OFF
+ 
+■ Một số biến mặc định
+PROJECT_SOURCE_DIR      Thư mục gốc của project (chứa file CMakeLists.txt đầu tiên)
+CMAKE_SOURCE_DIR      	Thư mục gốc của dự án hiện tại (thường giống với PROJECT_SOURCE_DIR, trừ khi dùng add_subdirectory)
+PROJECT_BINARY_DIR      Thư mục build chính của project
+CMAKE_BINARY_DIR      	Thư mục build gốc (nơi bạn chạy cmake để sinh ra các file build)
+{project}_SOURCE_DIR    	Thư mục source của subproject (khi dùng add_subdirectory)
+{project}_BINARY_DIR    	Thư mục build của subproject (khi dùng add_subdirectory)
+CMAKE_CURRENT_SOURCE_DIR  	Thư mục chứa file CMakeLists.txt hiện tại
+CMAKE_CURRENT_BINARY_DIR  	Thư mục build được tạo tương ứng với CMakeLists.txt hiện tại
+ 
+■ Các flag thông dụng
+CMAKE_BUILD_TYPE             Chọn chế độ build: Debug, Release, RelWithDebInfo, MinSizeRel
+                      cmake -DCMAKE_BUILD_TYPE=Release ..
+CMAKE_C_COMPILER/CMAKE_CXX_COMPILER   Chỉ định trình biên dịch sử dụng (gcc, clang, ...)
+                      cmake -DCMAKE_C_COMPILER=gcc-12 -DCMAKE_CXX_COMPILER=g++-12 ..
+CMAKE_C_FLAGS/CMAKE_CXX_FLAGS       Thêm flag tùy chỉnh cho toàn bộ quá trình biên dịch C hoặc C++.
+                      cmake -DCMAKE_C_FLAGS="-Wall -O2" -DCMAKE_CXX_FLAGS="-Wall -O2" ..
+CMAKE_INSTALL_PREFIX          Chỉ định thư mục cài đặt khi dùng lệnh install.
+                      cmake -DCMAKE_INSTALL_PREFIX=/opt/myapp ..
+BUILD_SHARED_LIBS            Dùng để chọn build thư viện động (ON) hay tĩnh (OFF) nếu bạn không chỉ định rõ ở add_library.
+                      cmake -DBUILD_SHARED_LIBS=ON ..
+CMAKE_EXPORT_COMPILE_COMMANDS            Sinh file compile_commands.json cho các công cụ phân tích mã nguồn.
+                      cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ..
+CMAKE_VERBOSE_MAKEFILE                   Hiện chi tiết lệnh biên dịch khi build (hữu ích để debug quá trình build).
+                      cmake -DCMAKE_VERBOSE_MAKEFILE=ON ..
+CMAKE_PREFIX_PATH            Thêm đường dẫn tìm kiếm package khi dùng find_package.
+                      cmake -DCMAKE_PREFIX_PATH="/path/to/deps" ..
+ 
+Set cờ trong file CMakeLists.txt:
+  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEX2" CACHE STRING "Set C++ Compiler Flags" FORCE):
+    CACHE STRING ... FORCE: Đặt biến này vào cache, cho phép nó xuất hiện trong giao diện cmake-gui và luôn ghi đè giá trị cũ.
+ 
+■ Quy trình build
+1. Tạo thư mục build
+  mkdir build
+  cd build
+2. Chạy cmake để genarate file build
+  cmake ..
+3. Build project
+  make #Hoặc cmake --build .
+4. Chạy project
+  ./my_executable
+ 
