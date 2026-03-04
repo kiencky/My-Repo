@@ -1,0 +1,21 @@
+Start testing: Mar 04 16:04 UTC
+----------------------------------------------------------
+1/1 Testing: LoggerTest
+1/1 Test: LoggerTest
+Command: "/mnt/d/My Data/MyRepo/CMake/MyBasicProject/build_ninja/test/testlog"
+Directory: /mnt/d/My Data/MyRepo/CMake/MyBasicProject/build_ninja/test
+"LoggerTest" start time: Mar 04 16:04 UTC
+Output:
+----------------------------------------------------------
+[INFO]:Test log.
+[WARNING]: Test warning.
+[ERROR]: Test error.
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"LoggerTest" end time: Mar 04 16:04 UTC
+"LoggerTest" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Mar 04 16:04 UTC

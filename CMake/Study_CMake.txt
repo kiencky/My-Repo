@@ -22,18 +22,18 @@ project(MyProject)                    # Đặt tên dự án
 add_executable(myapp src/main.cpp)    # Tạo file thực thi từ mã nguồn
  
 ■ Các lệnh cơ bản
-cmake_minimum_required(VERSION ...)       	: Đặt phiên bản tối thiểu của CMake.
-project(...)                  		: Đặt tên và thiết lập dự án.
-add_executable(name file1 file2 ...)      	: Tạo file thực thi từ các file nguồn.
-add_library(name STATIC file1 ...)      	: Tạo thư viện tĩnh từ các file nguồn.
+cmake_minimum_required(VERSION ...)       		: Đặt phiên bản tối thiểu của CMake.
+project(...)                  			: Đặt tên và thiết lập dự án.
+add_executable(name file1 file2 ...)      		: Tạo file thực thi từ các file nguồn.
+add_library(name STATIC file1 ...)        		: Tạo thư viện tĩnh từ các file nguồn.
   STATIC: Thư viện tĩnh (.a, .lib)
   SHARED: Thư viện động (.so, .dll, .dylib)
   MODULE: Thư viện module (plugin)
   INTERFACE: Không tạo file thư viện, chỉ truyền thuộc tính
 add_library(hello::library ALIAS hello_library)  	: Tạo alias(bí danh) cho thư viện.
 add_subdirectory(dir1)              		: Thêm thư mục con vào quá trình build (Hệ thống sẽ tìm và xử lý file CMakeLists.txt nằm trong thư mục con đó).
-target_link_libraries(target PRIVATE lib1 ...) 		: Liên kết target với các thư viện.
-include_directories(dir1 dir2 ...)       		: Thêm thư mục chứa header vào project.
+target_link_libraries(target PRIVATE lib1 ...)  	: Liên kết target với các thư viện.
+include_directories(dir1 dir2 ...)        		: Thêm thư mục chứa header vào project.
 target_include_directories(target PRIVATE dir1)  	: Thêm thư mục chứa header cho target chỉ định vào project.
   PRIVATE: Chỉ cho target đó sử dụng.
   INTERFACE: Chỉ các target link với target này mới thấy.
@@ -45,16 +45,19 @@ install(DIRECTORY dir1 DESTINATION include)    	: Copy thư mục header
 install(FILES file1 DESTINATION etc)      		: Copy file cấu hình vào thư mục cấu hình.
 find_package(lib <version> [REQUIRED] [COMPONENTS comp1 comp2])  : Tìm, cấu hình thư viện cho project.
 message("...")                  		: In ra màn hình khi chạy cmake ..
-option(BUILD_TESTS "Build the test suite" ON)  	: Tạo và cấu hình flag(BUILD_TESTS) ON/OFF
+option(BUILD_TESTS "Build the test suite" ON) 	 	: Tạo và cấu hình flag(BUILD_TESTS) ON/OFF
+configure_file(<file_nguon> <file_dich> [COPYONLY|ESCAPE_QUOTES|@ONLY]) : Tạo file cấu hình từ file mẫu, thay thế biến bằng giá trị thực tế do bạn đặt trong CMake.
+add_test(NAME <tên_testcase> COMMAND <file_thực thi> [<tham_số_1> <tham_số_2> ...]) : Định nghĩa chương trình test, chạy bằng ctest
+enable_testing()                 			: Bật hệ thống test của CMake, cho phép sử dụng add_test() và chạy test với ctest.
  
 ■ Một số biến mặc định
 PROJECT_SOURCE_DIR      Thư mục gốc của project (chứa file CMakeLists.txt đầu tiên)
 CMAKE_SOURCE_DIR      	Thư mục gốc của dự án hiện tại (thường giống với PROJECT_SOURCE_DIR, trừ khi dùng add_subdirectory)
-PROJECT_BINARY_DIR      Thư mục build chính của project
+PROJECT_BINARY_DIR      Thư mục build chính của project ( nơi chạy command cmake .. để build)
 CMAKE_BINARY_DIR      	Thư mục build gốc (nơi bạn chạy cmake để sinh ra các file build)
 {project}_SOURCE_DIR    	Thư mục source của subproject (khi dùng add_subdirectory)
 {project}_BINARY_DIR    	Thư mục build của subproject (khi dùng add_subdirectory)
-CMAKE_CURRENT_SOURCE_DIR  	Thư mục chứa file CMakeLists.txt hiện tại
+CMAKE_CURRENT_SOURCE_DIR  	Thư mục chứa file CMakeLists.txt hiện tại đang code
 CMAKE_CURRENT_BINARY_DIR  	Thư mục build được tạo tương ứng với CMakeLists.txt hiện tại
  
 ■ Các flag thông dụng
@@ -80,6 +83,7 @@ Set cờ trong file CMakeLists.txt:
     CACHE STRING ... FORCE: Đặt biến này vào cache, cho phép nó xuất hiện trong giao diện cmake-gui và luôn ghi đè giá trị cũ.
  
 ■ Quy trình build
+====Build bằng make====
 1. Tạo thư mục build
   mkdir build
   cd build
@@ -90,3 +94,13 @@ Set cờ trong file CMakeLists.txt:
 4. Chạy project
   ./my_executable
  
+====Build bằng ninja====
+1. Tạo thư mục build
+  mkdir build_ninja
+  cd build_ninja
+2. Chạy cmake để genarate file build, -G để đổi sang công cụ build khác
+  cmake -G Ninja ..
+3. Build project
+  ninja
+4. Chạy project
+  ./my_executable

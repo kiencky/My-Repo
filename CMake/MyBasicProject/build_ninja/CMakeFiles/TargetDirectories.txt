@@ -1,0 +1,15 @@
+/mnt/d/My Data/MyRepo/CMake/MyBasicProject/build_ninja/CMakeFiles/test.dir
+/mnt/d/My Data/MyRepo/CMake/MyBasicProject/build_ninja/CMakeFiles/edit_cache.dir
+/mnt/d/My Data/MyRepo/CMake/MyBasicProject/build_ninja/CMakeFiles/rebuild_cache.dir
+/mnt/d/My Data/MyRepo/CMake/MyBasicProject/build_ninja/logger/CMakeFiles/logger.dir
+/mnt/d/My Data/MyRepo/CMake/MyBasicProject/build_ninja/logger/CMakeFiles/test.dir
+/mnt/d/My Data/MyRepo/CMake/MyBasicProject/build_ninja/logger/CMakeFiles/edit_cache.dir
+/mnt/d/My Data/MyRepo/CMake/MyBasicProject/build_ninja/logger/CMakeFiles/rebuild_cache.dir
+/mnt/d/My Data/MyRepo/CMake/MyBasicProject/build_ninja/app/CMakeFiles/app.dir
+/mnt/d/My Data/MyRepo/CMake/MyBasicProject/build_ninja/app/CMakeFiles/test.dir
+/mnt/d/My Data/MyRepo/CMake/MyBasicProject/build_ninja/app/CMakeFiles/edit_cache.dir
+/mnt/d/My Data/MyRepo/CMake/MyBasicProject/build_ninja/app/CMakeFiles/rebuild_cache.dir
+/mnt/d/My Data/MyRepo/CMake/MyBasicProject/build_ninja/test/CMakeFiles/testlog.dir
+/mnt/d/My Data/MyRepo/CMake/MyBasicProject/build_ninja/test/CMakeFiles/test.dir
+/mnt/d/My Data/MyRepo/CMake/MyBasicProject/build_ninja/test/CMakeFiles/edit_cache.dir
+/mnt/d/My Data/MyRepo/CMake/MyBasicProject/build_ninja/test/CMakeFiles/rebuild_cache.dir
