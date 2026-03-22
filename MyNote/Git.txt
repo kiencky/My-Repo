@@ -1,0 +1,20 @@
+================INIT REPOSITORY==================
+1. Create new repository in github
+2. Init your repo in local
+Change directory to your project in local and enter the following command
+	git init
+	git config --global user.name "yourname"
+	git config --global user.email "youremail"
+Change branch name (master -> main) : git branch -M main
+3. Create SSH key to connect to github
+	ssh-keygen -t ed25519 -C "youremail"
+Copy key id_ed25519.pub file: cat ~/.ssh/id_ed25519.pub
+4. Add SSH key in github
+	Setting > SSH key and GPG key > New SSH key
+5. Link to remote repository
+	git remote add origin git@github.com:username/repo-name.git(ssh-link)
+5. Create a commit and use this command to push
+	touch README.md
+	git add .
+	git commit -m "Initial commit"
+	git push --set-upstream origin main

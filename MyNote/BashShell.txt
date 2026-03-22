@@ -1,0 +1,111 @@
+======================Bash Shell================
+※ Bash (Bourne Again Shell) là một trình thông dịch dòng lệnh để người dùng có thể giao tiếp với hệ điều hành thông qua dòng lệnh
+ 
+※ Biến
+● Khai báo biến:
+  tenbien="giatri"
+    Ex: count=0
+ 
+$count  : Sử dụng giá trị biến count
+$0    : Tên script hoặc lệnh
+$1    : Tham số thứ nhất truyền vào script
+$2    : Tham số thứ hai truyền vào script
+$#    : Số lượng tham số truyền vào script
+$@    : Tất cả các tham số
+$$    : PID của tiến trình hiện tại
+$?    : Giá trị trả về của lệnh trước đó (0 = thành công)
+ 
+● Export biến (mục đích là update giá trị cho biến và để shell con có thể sử dụng biến này):
+  export PATH=$PATH:/usr/local/bin  (PATH: Biến môi trường)
+
+※ Các lệnh thông dụng:
+ls      Liệt kê file/thư mục hiện tại
+cd      Đổi thư mục
+pwd      Hiển thị đường dẫn hiện tại
+mkdir    Tạo thư mục mới
+rmdir    Xóa thư mục rỗng
+touch    Tạo file mới hoặc cập nhật thời gian file
+cp      Sao chép file/thư mục
+mv      Di chuyển/đổi tên file/thư mục
+rm      Xóa file/thư mục
+cat      Hiển thị nội dung file
+head    Hiển thị vài dòng đầu của file
+tail    Hiển thị vài dòng cuối của file
+echo    In ra màn hình
+man      Xem tài liệu hướng dẫn lệnh
+grep    Tìm kiếm theo chuỗi
+find    Tìm file/thư mục
+history    Xem lịch sử lệnh
+chmod    Đổi quyền truy cập file/thư mục
+chown    Đổi chủ sở hữu file/thư mục
+ps      Xem tiến trình đang chạy
+kill    Kết thúc tiến trình
+tar      Nén/giải nén file dạng tar
+ 
+※ Các toán tử:
+-eq      Bằng                  [ $a -eq $b ]
+-ne      Khác                  [ $a -ne $b ]
+-gt      Lớn hơn                  [ $a -gt $b ]
+-lt      Nhỏ hơn                  [ $a -lt $b ]
+-ge      Lớn hơn hoặc bằng            [ $a -ge $b ]
+-le      Nhỏ hơn hoặc bằng            [ $a -le $b ]
+-z      True nếu chuỗi rỗng            [ -z "$str" ]
+-n      True nếu chuỗi không rỗng        [ -n "$str" ]
+=      Hai chuỗi bằng nhau            [ "$a" = "$b" ]
+!=      Hai chuỗi khác nhau            [ "$a" != "$b" ]
+-f      File tồn tại và là file thường      [ -f "$file" ]
+-d      File tồn tại và là thư mục        [ -d "$dir" ]
+-e      File hoặc thư mục tồn tại        [ -e "$path" ]
+-r      File có thể đọc được          [ -r "$file" ]
+-w      File có thể ghi được          [ -w "$file" ]
+-x      File có thể thực thi          [ -x "$file" ]
+-p      File tồn tại và là named pipe (FIFO)  [ -p "$file" ]
+-s      File tồn tại và dung lượng lớn hơn 0  [ -s "$file" ]
+-L      File là liên kết mềm (symbolic link)  [ -L "$file" ]
+-a      AND (và)                [ -f "$a" -a -r "$a" ]
+-o      OR (hoặc)                [ -f "$a" -o -f "$b" ]
+!      NOT (phủ định)              [ ! -e "$file" ]
+ 
+※ Cấu trúc hàm
+● Cấu trúc điều kiện if:
+  if [ $a -eq $b ]; then
+    echo "Bằng nhau"
+  elif [ $a -gt $b ]; then
+    echo "Lớn hơn"
+  else
+    echo "Nhỏ hơn"
+  fi
+ 
+● Vòng lặp for:
+  for i in 1 2 3 4 5
+  do
+    echo "Giá trị: $i"
+  done
+ 
+● Vòng lặp while:
+  count=1
+  while [ $count -le 5 ]
+  do
+    echo "Count: $count"
+    count=$((count+1))
+  done
+ 
+● Hàm:
+  function say_hello() {
+    echo "Hello \$1"
+  }
+  say_hello "World"
+ 
+● Switch case:
+  case $var in
+    1)
+      echo "Case 1"
+      ;;
+    2)
+      echo "Case 2"
+      ;;
+    *)
+      echo "Default"
+      ;;
+  esac
+ 

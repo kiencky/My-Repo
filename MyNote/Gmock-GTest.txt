@@ -1,0 +1,101 @@
+=========NORMAL COMMAND===========
+ 
+TEST(TestSuiteName, TestName) {
+    // Đoạn kiểm tra
+}
+ 
+EXPECT_EQ(val1, val2);          // So sánh bằng, không dừng test khi fail
+ASSERT_EQ(val1, val2);          // So sánh bằng, dừng test khi fail
+ 
+EXPECT_TRUE(expr);            // Kiểm tra đúng
+EXPECT_FALSE(expr);            // Kiểm tra sai
+ 
+EXPECT_NULL(ptr);            // Kiểm tra NULL
+EXPECT_NOTNULL(ptr);          // Kiểm tra NOT NULL
+ 
+EXPECT_STREQ(str1, str2);       // So sánh C string
+ 
+EXPECT_CALL(mockObj, foo(a)).WillOnce(Return(42));  // Expect hàm được gọi với tham số a, trả về giá trị 42. Chỉ có tác dụng khi sử dụng mock method
+ 
+using ::testing::_;
+using ::testing::DoAll;
+using ::testing::SetArgReferee;
+using ::testing::Return;
+ 
+using ::testing::_;
+  - Dùng để khớp với bất kỳ giá trị nào (bạn không quan tâm giá trị thực tế truyền vào là gì).
+  - Thường dùng trong EXPECT_CALL để nói rằng “tham số nào cũng được”.
+  Ex: EXPECT_CALL(mockObj, func(_, 5)); // Tham số đầu là gì cũng được, miễn tham số thứ hai là 5
+ 
+using ::testing::DoAll;
+  - Dùng để thực hiện nhiều hành động cùng lúc khi một mock method được gọi.
+  - Thường dùng để vừa set giá trị tham chiếu, vừa trả về giá trị.
+  Ex: EXPECT_CALL(mockObj, func(_, _))
+    .WillOnce(DoAll(SetArgReferee<1>(10), Return(true)));  // Khi gọi hàm, sẽ đặt tham số thứ 2 (tham chiếu) thành 10 và trả về true.
+
+using ::testing::SetArgReferee;
+  - Dùng để gán giá trị cho tham số thứ N (bắt đầu từ 0) nếu tham số đó là tham chiếu (reference).
+  - Thường dùng khi hàm mock có tham số kiểu tham chiếu (ví dụ: int&).
+  Ex: MOCK_METHOD(void, getValue, (int& outVal), (override));
+  EXPECT_CALL(mockObj, getValue(_)).WillOnce(SetArgReferee<0>(123));  // Khi gọi getValue, biến truyền vào sẽ được gán giá trị 123.
+
+using ::testing::Return;
+  - Dùng để quy định giá trị trả về của mock method.
+  Ex: EXPECT_CALL(mockObj, foo()).WillOnce(Return(42));  // Khi gọi foo(), trả về 42.
+
+.WillOnce(::testing::Return(giatri));
+  Thiết lập giá trị hàm mock trả về trong lần gọi đầu tiên
+.WillRepeatedly(Return(123))
+  Thiết lập giá trị hàm mock trả về trong các lần gọi lặp lại
+
+class MockAnimal : public Animal {
+public:
+    MOCK_METHOD(void, Speak, (int times), (override));
+};
+MOCK_METHOD(return_type, method_name, (args), (modifiers));
+  Dùng để tạo ra các hàm giả lập hàm dùng để kiểm tra hàm được gọi đúng số lần, đúng tham số, đúng thứ tự,...
+  Ex: MOCK_METHOD(void, functionA, (int times), (override));
+Tác dụng: Giả lập hành vi, thay thế cho class gốc. Dùng để đặt expect, chỉ định giá trị trả về (EXPECT_CALL). Dùng để kiểm tra hàm có được gọi, gọi bao nhiêu lần, đúng tham số không.
+ 
+===========GMOCK=============
+ 
+#include <gmock/gmock.h>
+ 
+class MyInterface {
+public:
+    virtual ~MyInterface() = default;
+    virtual int foo(int a) = 0;
+};
+ 
+class MockMyInterface : public MyInterface {
+public:
+    MOCK_METHOD(int, foo, (int a), (override));
+};
+ 
+MockMyInterface mock;
+EXPECT_CALL(mock, foo(5))         // Kỳ vọng gọi foo với tham số 5
+    .Times(1)                     // Gọi đúng 1 lần
+    .WillOnce(::testing::Return(10)); // Giá trị trả về 10
+
+==========MAIN=============
+ 
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}
+ 
+===========COVERAGE========
+coverage_mfp: clean $(TAR_MFP)
+  @echo "Running MFP test for coverage..."
+  ./$(TAR_MFP)
+  @echo "Generating coverage for MFP..."
+  lcov --capture --directory . --output-file mfp.info --ignore-errors mismatch --ignore-errors unused
+  lcov --remove mfp.info '/usr/*' '*gtest*' '*mock*' --output-file mfp_clean.info --ignore-errors unused
+  genhtml mfp_clean.info --output-directory coverage_report_mfp
+  @echo "MFP coverage report generated in coverage_report_mfp/index.html"
+ 
+Chạy test (./$(TAR_MFP)) để sinh ra dữ liệu coverage.
+Dùng lcov --capture để lấy thông tin coverage.
+Dùng lcov --remove để loại bỏ các file không liên quan (header hệ thống, Google Test/Mock).
+Dùng genhtml để sinh báo cáo coverage dạng HTML.
+ 
