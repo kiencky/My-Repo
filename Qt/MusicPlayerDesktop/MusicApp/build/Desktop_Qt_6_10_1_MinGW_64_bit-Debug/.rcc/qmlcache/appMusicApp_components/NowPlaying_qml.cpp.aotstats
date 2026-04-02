@@ -1,0 +1,31 @@
+{
+    "formatRevision": 1,
+    "modules": [
+        {
+            "moduleFiles": [
+                {
+                    "entries": [
+                        {
+                            "codegenResult": 0,
+                            "column": 27,
+                            "durationMicroseconds": 179,
+                            "functionName": "centerIn",
+                            "line": 9,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 19,
+                            "durationMicroseconds": 44,
+                            "functionName": "text",
+                            "line": 19,
+                            "message": "Cannot access value for name songName"
+                        }
+                    ],
+                    "filePath": "D:/MyData/QT/MusicPlayerDesktop/MusicApp/components/NowPlaying.qml"
+                }
+            ],
+            "moduleId": "MusicApp(appMusicApp)"
+        }
+    ]
+}

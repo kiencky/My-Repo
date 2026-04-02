@@ -1,0 +1,11 @@
+--resource
+D:/MyData/QT/MusicPlayerDesktop/MusicApp/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/.qt/rcc/qmake_MusicApp.qrc
+--resource
+D:/MyData/QT/MusicPlayerDesktop/MusicApp/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/.qt/rcc/appMusicApp_raw_qml_0.qrc
+--resource
+D:/MyData/QT/MusicPlayerDesktop/MusicApp/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/.qt/rcc/appMusicApp_raw_qml_0_extra_qmldirs.qrc
+/qt/qml/MusicApp/Main.qml
+/qt/qml/MusicApp/components/Playlist.qml
+/qt/qml/MusicApp/components/SongItem.qml
+/qt/qml/MusicApp/components/NowPlaying.qml
+/qt/qml/MusicApp/components/PlayerControls.qml

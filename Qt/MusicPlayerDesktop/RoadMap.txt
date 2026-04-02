@@ -1,0 +1,69 @@
+1. Lộ trình
+- Giai đoạn 1: UI thuần bằng QML + Qt Quick
+Layout
+Button
+Slider
+ListView
+Signal (onClicked)
+JS cơ bản
+
+- Giai đoạn 2:
+Thêm:
+Models / ListView
+Dialog (open file)
+Animation
+
+- Giai đoạn 3
+Kết nối:
+QML ↔ C++
+đọc file từ thư mục Music
+
+- Giai đoạn 4
+Multi-language
+Storage (save setting)
+Hoàn thiện sản phẩm
+
+2. Nguyên lý
+UI (QML)
+  ↓
+Signal/Event
+  ↓
+Logic (JS hoặc C++)
+
+3. Cấu trúc
+MusicPlayer/
+ ├── qml/
+ │    ├── Main.qml
+ │    ├── components/
+ │    │     ├── PlayerControls.qml
+ │    │     ├── Playlist.qml
+ │    │     ├── SongItem.qml
+ │    │     └── NowPlaying.qml
+ │    ├── models/
+ │    │     └── SongModel.js
+ │    └── assets/
+ │          ├── icons/
+ │          └── images/
+ ├── main.cpp
+ └── CMakeLists.txt
+ 
+UI có 3 phần:	- Trái: Playlist
+				- Giữa: Music
+				- Dưới: Control	
+				
+				
+ListModel (data)
+        ↓
+ListView
+        ↓
+Tạo 3 instance SongItem
+        ↓
+SongItem(songName = "Song A")
+SongItem(songName = "Song B")
+SongItem(songName = "Song C")
+        ↓
+User click
+        ↓
+SongItem emit signal
+        ↓
+Main nhận signal

@@ -1,0 +1,10 @@
+<RCC>
+  <qresource prefix="/qt/qml/MusicApp/">
+    <file alias="Main.qml">D:/MyData/QT/MusicPlayerDesktop/MusicApp/Main.qml</file>
+    <file alias="components/Playlist.qml">D:/MyData/QT/MusicPlayerDesktop/MusicApp/components/Playlist.qml</file>
+    <file alias="components/SongItem.qml">D:/MyData/QT/MusicPlayerDesktop/MusicApp/components/SongItem.qml</file>
+    <file alias="components/NowPlaying.qml">D:/MyData/QT/MusicPlayerDesktop/MusicApp/components/NowPlaying.qml</file>
+    <file alias="components/PlayerControls.qml">D:/MyData/QT/MusicPlayerDesktop/MusicApp/components/PlayerControls.qml</file>
+  </qresource>
+</RCC>
+

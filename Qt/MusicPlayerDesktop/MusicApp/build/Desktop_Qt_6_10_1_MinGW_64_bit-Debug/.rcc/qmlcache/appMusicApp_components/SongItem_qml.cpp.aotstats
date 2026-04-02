@@ -1,0 +1,79 @@
+{
+    "formatRevision": 1,
+    "modules": [
+        {
+            "moduleFiles": [
+                {
+                    "entries": [
+                        {
+                            "codegenResult": 0,
+                            "column": 12,
+                            "durationMicroseconds": 207,
+                            "functionName": "width",
+                            "line": 4,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 12,
+                            "durationMicroseconds": 150,
+                            "functionName": "color",
+                            "line": 13,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 15,
+                            "durationMicroseconds": 78,
+                            "functionName": "text",
+                            "line": 16,
+                            "message": "Cannot load property songName from (component in D:/MyData/QT/MusicPlayerDesktop/MusicApp/components/SongItem.qml)::parent with type QQuickItem."
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 27,
+                            "durationMicroseconds": 34,
+                            "functionName": "centerIn",
+                            "line": 17,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 20,
+                            "durationMicroseconds": 22,
+                            "functionName": "onEntered",
+                            "line": 25,
+                            "message": "Cannot find name hovered"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 19,
+                            "durationMicroseconds": 11,
+                            "functionName": "onExited",
+                            "line": 26,
+                            "message": "Cannot find name hovered"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 20,
+                            "durationMicroseconds": 53,
+                            "functionName": "onClicked",
+                            "line": 28,
+                            "message": "Cannot load property songName from (component in D:/MyData/QT/MusicPlayerDesktop/MusicApp/components/SongItem.qml)::parent with type QQuickItem."
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 23,
+                            "durationMicroseconds": 37,
+                            "functionName": "fill",
+                            "line": 22,
+                            "message": ""
+                        }
+                    ],
+                    "filePath": "D:/MyData/QT/MusicPlayerDesktop/MusicApp/components/SongItem.qml"
+                }
+            ],
+            "moduleId": "MusicApp(appMusicApp)"
+        }
+    ]
+}

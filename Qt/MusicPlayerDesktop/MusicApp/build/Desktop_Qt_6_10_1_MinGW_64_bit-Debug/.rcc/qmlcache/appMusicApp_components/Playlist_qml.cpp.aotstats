@@ -1,0 +1,39 @@
+{
+    "formatRevision": 1,
+    "modules": [
+        {
+            "moduleFiles": [
+                {
+                    "entries": [
+                        {
+                            "codegenResult": 0,
+                            "column": 23,
+                            "durationMicroseconds": 323,
+                            "functionName": "fill",
+                            "line": 12,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 23,
+                            "durationMicroseconds": 743,
+                            "functionName": "songName",
+                            "line": 21,
+                            "message": "Cannot access value for name name"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 24,
+                            "durationMicroseconds": 555,
+                            "functionName": "onClicked",
+                            "line": 24,
+                            "message": "method songSelected cannot be resolved."
+                        }
+                    ],
+                    "filePath": "D:/MyData/QT/MusicPlayerDesktop/MusicApp/components/Playlist.qml"
+                }
+            ],
+            "moduleId": "MusicApp(appMusicApp)"
+        }
+    ]
+}
