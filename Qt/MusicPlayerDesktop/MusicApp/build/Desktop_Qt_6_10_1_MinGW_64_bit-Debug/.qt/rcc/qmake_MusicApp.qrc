@@ -1,6 +1,0 @@
-<RCC>
-  <qresource prefix="/qt/qml/MusicApp">
-    <file alias="qmldir">D:/MyData/QT/MusicPlayerDesktop/MusicApp/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/MusicApp/qmldir</file>
-  </qresource>
-</RCC>
-
