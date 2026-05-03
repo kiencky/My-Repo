@@ -1,0 +1,33 @@
+■ C
+
+🎯 YÊU CẦU BẮT BUỘC:
+👉 Lập trình C trên Linux: 
+- Thành thạo C (con trỏ, struct, bitwise, macro, static/dynamic linking). 
+- Hiểu rõ memory layout (stack, heap, data segment). 
+- Quản lý bộ nhớ thủ công: malloc/free. 
+- Biết dùng valgrind/gdb để debug
+👉 Multi-threading: 
+- Sử dụng pthread. 
+- Mutex, semaphore, condition variable. 
+- Hiểu race condition, deadlock. 
+- Thiết kế thread-safe
+👉 IPC (Inter-Process Communication): 
+- Pipe / Named pipe. 
+- Shared memory. 
+- Message queue. 
+- Socket local
+👉 Networking cơ bản
+- Socket TCP/UDP
+- Hiểu TCP/IP cơ bản (3-way handshake, congestion control)
+- Có thể viết TCP server/client đơn giản
+👉 Thuật toán & tư duy hệ thống
+- Hiểu cấu trúc dữ liệu: list, queue, hash table
+- Phân tích độ phức tạp O(n)W
+- Có tư duy tối ưu hiệu năng
+🔥 LỢI THẾ (KHÔNG BẮT BUỘC):
+- Kinh nghiệm làm hệ thống real-time
+- Hiểu event-driven model (epoll/select)
+- Hiểu memory alignment, cache line
+- Kinh nghiệm tối ưu latency
+- Kiến thức TCP/IP nâng cao
+- Từng làm network software, embedded hoặc thiết bị viễn thông

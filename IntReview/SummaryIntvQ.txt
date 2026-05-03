@@ -1,0 +1,204 @@
+C/C++/Qt Interview Review Topics (2 Years Experience)
+1. C Core
+Memory
+	•	stack vs heap
+	•	memory layout
+		o	text
+		o	data
+		o	bss
+		o	heap
+		o	stack
+	•	malloc/calloc/realloc/free
+	•	memory leak
+	•	dangling pointer
+	•	segmentation fault
+Pointer
+	•	pointer arithmetic
+	•	function pointer
+	•	double pointer
+	•	const pointer
+System-level C
+	•	bitwise operator
+	•	macro
+	•	static keyword
+	•	static vs dynamic linking
+Linux Debugging
+	•	gdb
+	•	valgrind
+	•	core dump basics
+________________________________________
+2. C++ Core
+OOP
+	•	encapsulation
+	•	inheritance
+	•	polymorphism
+	•	abstraction
+Class/Object
+	•	constructor/destructor
+	•	copy constructor
+	•	assignment operator
+	•	Rule of 3/5
+Virtual
+	•	virtual function
+	•	pure virtual
+	•	vtable basics
+	•	override vs overload
+Modern C++
+	•	smart pointer
+	•	move semantics
+	•	RAII
+	•	nullptr
+	•	auto
+	•	lambda basics
+STL
+	•	vector
+	•	map/unordered_map
+	•	set
+	•	queue/stack
+	•	iterator
+	•	algorithm
+C++ Design
+	•	SOLID
+	•	composition vs inheritance
+	•	modular design
+________________________________________
+3. Multi-threading / Concurrency
+Basics
+	•	process vs thread
+	•	race condition
+	•	deadlock
+Synchronization
+	•	mutex
+	•	semaphore
+	•	condition variable
+	•	atomic
+Linux/Qt Threading
+	•	pthread
+	•	QThread
+	•	thread-safe design
+Important mindset
+	•	lock contention
+	•	producer-consumer
+	•	async communication
+________________________________________
+4. Linux System Programming
+IPC
+	•	pipe
+	•	FIFO
+	•	shared memory
+	•	message queue
+	•	unix domain socket
+Networking
+	•	socket TCP/UDP
+	•	TCP handshake
+	•	blocking/non-blocking
+	•	select/epoll
+	•	client/server flow
+Performance/System
+	•	event-driven model
+	•	latency vs throughput
+	•	cache line
+	•	memory alignment
+________________________________________
+5. Qt Core
+QObject System
+	•	QObject
+	•	Q_OBJECT
+	•	signal/slot
+	•	event loop
+	•	parent-child ownership
+	•	deleteLater()
+Qt Threading
+	•	QThread
+	•	moveToThread()
+	•	queued connection
+	•	UI thread rule
+Qt Containers/Core
+	•	QString
+	•	QByteArray
+	•	QVariant
+	•	implicit sharing
+Model/View
+	•	QAbstractListModel
+	•	roleNames()
+	•	MVC/MVVM concept
+________________________________________
+6. QML / Qt Quick
+Core
+	•	property binding
+	•	signal handling
+	•	Loader
+	•	ListView
+	•	delegate
+	•	Repeater
+C++ ↔ QML
+	•	Q_PROPERTY
+	•	Q_INVOKABLE
+	•	context property
+	•	qmlRegisterType()
+Performance
+	•	binding loop
+	•	Loader optimization
+	•	ListView virtualization
+________________________________________
+7. Git / Development Workflow
+Git
+	•	commit
+	•	branch
+	•	merge vs rebase
+	•	resolve conflict
+Review Workflow
+	•	Gerrit basics
+	•	Jira basics
+________________________________________
+8. Automotive / Embedded
+Basics
+	•	AUTOSAR overview
+	•	realtime concept
+	•	MISRA concept
+Embedded mindset
+	•	memory efficiency
+	•	deterministic behavior
+	•	reliability
+	•	low latency
+________________________________________
+9. Practical Interview Topics
+Debugging
+	•	debug race condition
+	•	debug memory corruption
+	•	debug crash
+Design
+	•	TCP server many connections
+	•	thread pool
+	•	producer-consumer
+Optimization
+	•	reduce allocation
+	•	reduce lock
+	•	optimize algorithm
+	•	profiling mindset
+________________________________________
+10. Priority Checklist
+MUST KNOW
+	•	pointer/reference
+	•	memory management
+	•	OOP
+	•	virtual
+	•	STL
+	•	smart pointer
+	•	mutex/thread
+	•	signal-slot
+	•	QThread
+	•	Git
+SHOULD KNOW
+	•	epoll/select
+	•	TCP basics
+	•	QML binding
+	•	model/view
+	•	SOLID
+	•	debugging tools
+BIG PLUS
+	•	performance optimization
+	•	realtime
+	•	embedded/Linux internals
+	•	automotive knowledge
+	•	multithread architecture
