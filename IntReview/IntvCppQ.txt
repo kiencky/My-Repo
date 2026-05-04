@@ -1,0 +1,677 @@
+■ 1. Hãy giới thiệu ngắn gọn về bản thân.
+
+Trả lời mẫu:
+Em có khoảng 2 năm kinh nghiệm phát triển phần mềm bằng C++. Em chủ yếu làm việc với OOP, thiết kế module, xử lý logic và maintain codebase.
+Em từng làm các project liên quan đến multi-module architecture, sử dụng Git để quản lý source code và có kinh nghiệm làm việc theo workflow dùng Jira/Gerrit.
+Gần đây em cũng tìm hiểu thêm về embedded/automotive software và muốn phát triển lâu dài trong lĩnh vực này.
+
+2. C++ Core Questions
+■ 2. Sự khác nhau giữa stack và heap?
+
+Trả lời:
+Stack	Heap
+Bộ nhớ cấp phát tự động	Cấp phát động bằng new/malloc
+Nhanh	Chậm hơn
+Tự giải phóng	Phải tự delete/free
+Kích thước nhỏ	Lớn hơn
+
+Ví dụ:
+int a = 5;          // stack
+int* p = new int;   // heap
+
+■ 3. Constructor và Destructor dùng để làm gì?
+
+Trả lời:
+Constructor dùng để khởi tạo object.
+Destructor dùng để giải phóng tài nguyên khi object bị hủy.
+
+Ví dụ:
+class A {
+public:
+    A() {
+        cout << "Constructor";
+    }
+
+    ~A() {
+        cout << "Destructor";
+    }
+};
+
+■ 4. Virtual function là gì?
+
+Trả lời:
+Virtual function cho phép runtime polymorphism.
+
+Ví dụ:
+class Base {
+public:
+    virtual void show() {
+        cout << "Base";
+    }
+};
+
+class Derived : public Base {
+public:
+    void show() override {
+        cout << "Derived";
+    }
+};
+
+Nếu dùng:
+Base* b = new Derived();
+b->show();
+
+→ output là "Derived".
+
+■ 5. Pure virtual function là gì?
+
+Trả lời:
+Là virtual function không có implementation trong base class.
+virtual void run() = 0;
+Class chứa pure virtual function sẽ trở thành abstract class.
+
+■ 6. Override và Overload khác nhau thế nào?
+
+Override
+Xảy ra giữa base và derived class.
+Cùng signature.
+
+Overload
+Cùng tên hàm nhưng khác parameter.
+
+Ví dụ:
+
+void print(int);
+void print(string);
+
+■ 7. Deep copy và shallow copy?
+
+Trả lời:
+Shallow copy
+Copy địa chỉ pointer.
+
+Deep copy
+Copy dữ liệu thật.
+
+Ví dụ:
+
+class A {
+    int* data;
+};
+
+Nếu shallow copy:
+2 object cùng trỏ 1 vùng nhớ
+dễ double free
+
+■ 8. Rule of 3 là gì?
+
+Nếu class quản lý resource động thì nên implement:
+Copy constructor
+Copy assignment operator
+Destructor
+
+C++11 thêm:
+
+Move constructor
+Move assignment
+
+→ thành Rule of 5.
+
+■ 9. Smart pointer là gì?
+
+Trả lời:
+Smart pointer giúp quản lý memory tự động.
+
+Các loại:
+unique_ptr
+shared_ptr
+weak_ptr
+
+Ví dụ:
+
+unique_ptr<int> p = make_unique<int>(10);
+
+■ 10. Sự khác nhau giữa unique_ptr và shared_ptr?
+unique_ptr	shared_ptr
+Chỉ 1 owner	Nhiều owner
+Không copy được	Copy được
+Nhẹ hơn	Có reference counting
+
+■ 11. Reference và pointer khác nhau?
+Reference	Pointer
+Không null	Có thể null
+Không đổi reference	Đổi địa chỉ được
+Cú pháp đơn giản	Linh hoạt hơn
+
+■ 12. const trong C++ có ý nghĩa gì?
+
+Ví dụ:
+const int a = 5;
+
+Hoặc:
+void print(const string& s);
+
+Giúp:
+tránh modify dữ liệu
+tăng safety
+tối ưu compiler
+
+■ 13. static keyword dùng để làm gì?
+Static variable trong function
+Giữ giá trị giữa các lần gọi.
+Static member
+Dùng chung cho mọi object.
+
+class A {
+    static int count;
+};
+
+■ 14. STL là gì?
+
+Standard Template Library.
+
+Bao gồm:
+
+container
+algorithm
+iterator
+
+Ví dụ:
+
+vector
+map
+set
+queue
+
+■ 15. vector và list khác nhau?
+vector	list
+contiguous memory	linked list
+random access nhanh	insert/delete giữa nhanh
+cache friendly	không random access
+
+■ 16. map và unordered_map khác nhau?
+map	unordered_map
+red-black tree	hash table
+có sort	không sort
+O(logN)	trung bình O(1)
+
+■ 17. RAII là gì?
+Resource Acquisition Is Initialization.
+Ý tưởng:
+resource được bind với object lifetime.
+
+Ví dụ:
+std::lock_guard<std::mutex> lock(mtx);
+Khi object bị hủy → tự unlock.
+Đây là concept cực quan trọng trong modern C++.
+
+3. OOP / OOAD
+■ 18. 4 tính chất OOP?
+Encapsulation
+Inheritance
+Polymorphism
+Abstraction
+
+■ 19. Encapsulation là gì?
+
+Ẩn data bên trong object và chỉ expose API cần thiết.
+Ví dụ:
+private:
+    int salary;
+	
+■ 20. Composition và Inheritance khác nhau?
+Inheritance
+
+"is-a"
+
+Car is a Vehicle
+Composition
+
+"has-a"
+
+Car has an Engine
+
+Composition thường được ưu tiên hơn inheritance.
+
+■ 21. SOLID principles là gì?
+S: Single Responsibility
+O: Open Closed
+L: Liskov Substitution
+I: Interface Segregation
+D: Dependency Inversion
+4. Multi-threading
+
+■ 22. Race condition là gì?
+Xảy ra khi nhiều thread cùng access shared data.
+
+■ 23. Mutex dùng để làm gì?
+Dùng để synchronize thread.
+
+Ví dụ:
+
+std::mutex mtx;
+
+mtx.lock();
+// critical section
+mtx.unlock();
+
+■ 24. Deadlock là gì?
+Hai thread chờ nhau vô hạn.
+
+Ví dụ:
+
+Thread A giữ mutex1 chờ mutex2
+Thread B giữ mutex2 chờ mutex1
+
+■ 25. atomic là gì?
+Cho phép thao tác thread-safe không cần mutex.
+
+std::atomic<int> counter;
+
+5. Git / Gerrit / Jira
+■ 26. Git rebase và merge khác nhau?
+Merge
+
+Giữ nguyên history.
+
+Rebase
+
+Làm history linear hơn.
+
+■ 27. Conflict trong Git xử lý thế nào?
+pull/rebase
+resolve conflict
+add
+commit
+
+■ 28. Gerrit dùng để làm gì?
+Gerrit dùng cho code review workflow.
+
+Flow phổ biến:
+
+git commit
+git push origin HEAD:refs/for/master
+
+Reviewer sẽ review trước khi merge.
+
+■ 29. Jira dùng để làm gì?
+quản lý task
+bug tracking
+sprint management
+6. Large Software System
+
+■ 30. Bạn hiểu gì về large-scale software?
+Trả lời mẫu:
+
+Large software system thường có nhiều module, nhiều developer cùng làm việc, cần architecture rõ ràng, coding convention, CI/CD, code review và version control tốt.
+Việc maintainability và scalability rất quan trọng.
+
+■ 31. Bạn làm sao để code dễ maintain?
+Trả lời:
+
+đặt tên rõ ràng
+chia module hợp lý
+tránh duplicate
+follow SOLID
+comment đúng chỗ
+viết code dễ đọc
+
+■ 32. Bạn từng debug issue khó chưa?
+Trả lời mẫu:
+
+Em từng gặp bug liên quan đến memory leak/race condition.
+Em dùng logging, chia nhỏ phạm vi lỗi, kiểm tra lifecycle object và dùng debugger để trace vấn đề.
+Sau đó em fix bằng cách quản lý ownership rõ ràng hơn và dùng smart pointer.
+
+7. Automotive-oriented Questions
+■ 33. Vì sao muốn làm automotive software?
+Trả lời mẫu:
+
+Em thích các hệ thống yêu cầu tính ổn định cao, realtime và architecture rõ ràng.
+Automotive software cũng là lĩnh vực có quy trình phát triển chuyên nghiệp và nhiều cơ hội phát triển lâu dài về embedded/C++.
+
+■ 34. Bạn biết gì về AUTOSAR?
+Trả lời ngắn gọn cho fresher/junior:
+
+Em biết AUTOSAR là một standardized architecture cho automotive software giúp các module có thể tái sử dụng và giao tiếp theo chuẩn chung.
+Hiện em đang tìm hiểu thêm về layered architecture và communication stack của AUTOSAR.
+
+■ 35. Coding standard quan trọng thế nào?
+Trả lời:
+Trong automotive:
+
+readability
+safety
+maintainability
+
+rất quan trọng.
+
+Ví dụ:
+
+MISRA C++
+naming convention
+static analysis
+
+QT
+■ 09. QObject::deleteLater() là gì?
+
+Không delete object ngay lập tức mà schedule delete qua event loop.
+
+An toàn hơn khi object đang xử lý event.
+
+obj->deleteLater();
+■ 10. Direct connection và Queued connection khác nhau?
+Direct	Queued
+gọi slot ngay lập tức	queue qua event loop
+cùng thread	khác thread
+synchronous	asynchronous
+■ 11. Auto connection trong Qt là gì?
+
+Qt tự chọn:
+
+Direct connection nếu cùng thread
+Queued connection nếu khác thread
+
+Đây là default behavior.
+
+■ 12. emit trong Qt là gì?
+
+Keyword mang tính semantic để emit signal.
+
+emit valueChanged();
+
+Thực chất emit chỉ là macro rỗng.
+
+■ 13. QObject tree có lợi ích gì?
+auto memory management
+organize object hierarchy
+auto cleanup
+■ 14. Event filter là gì?
+
+Cho phép intercept event trước khi target object nhận event.
+
+installEventFilter(this);
+■ 15. Khi nào dùng eventFilter?
+
+Khi cần:
+
+custom keyboard handling
+mouse handling
+global shortcut
+intercept UI behavior
+■ 16. QTimer dùng để làm gì?
+
+Thực hiện task theo interval.
+
+QTimer::singleShot(1000, this, SLOT(update()));
+■ 17. Single-shot timer là gì?
+
+Timer chạy đúng 1 lần rồi stop.
+
+■ 18. Qt::QueuedConnection thường dùng khi nào?
+
+Khi:
+
+signal giữa nhiều thread
+background worker update UI
+async communication
+■ 19. moveToThread() dùng để làm gì?
+
+Move QObject sang thread khác.
+
+worker->moveToThread(thread);
+■ 20. Vì sao subclass QThread thường không được khuyến khích?
+
+Qt khuyến khích:
+
+worker object + moveToThread()
+
+thay vì nhét business logic trực tiếp vào QThread subclass.
+
+■ 21. QMutex vs std::mutex?
+QMutex	std::mutex
+Qt integrated	STL standard
+works with Qt APIs	portable C++
+■ 22. QWaitCondition là gì?
+
+Qt equivalent của condition variable.
+
+■ 23. QVariant là gì?
+
+Container generic cho nhiều kiểu dữ liệu.
+
+Ví dụ:
+
+QVariant v = 10;
+QVariant s = "hello";
+■ 24. QByteArray dùng để làm gì?
+
+Làm việc với raw binary data.
+
+Hay dùng:
+
+network
+serialization
+protocol
+■ 25. QStringLiteral khác QString thế nào?
+
+QStringLiteral
+
+tạo string compile-time
+tối ưu memory/performance hơn
+■ 26. implicit sharing trong Qt là gì?
+
+Copy-on-write optimization.
+
+Ví dụ:
+
+QString a = "hello";
+QString b = a;
+
+Chưa copy data ngay.
+
+■ 27. Vì sao implicit sharing hữu ích?
+giảm copy memory
+tăng performance
+lightweight object passing
+■ 28. Qt resource system có ưu điểm gì?
+deploy dễ
+không phụ thuộc file ngoài
+portable
+■ 29. Q_PROPERTY cần những thành phần nào?
+
+Thường gồm:
+
+READ
+WRITE
+NOTIFY
+
+Ví dụ:
+
+Q_PROPERTY(int value READ value WRITE setValue NOTIFY valueChanged)
+■ 30. NOTIFY trong Q_PROPERTY dùng để làm gì?
+
+Thông báo property changed để:
+
+QML binding update
+UI auto refresh
+■ 31. Binding loop trong QML là gì?
+
+Hai property update lẫn nhau vô hạn.
+
+Ví dụ:
+
+a: b + 1
+b: a + 1
+■ 32. Vì sao QML dễ tạo UI nhanh?
+declarative syntax
+binding
+animation built-in
+hot reload dễ hơn widget UI
+■ 33. StackView trong QML dùng để làm gì?
+
+Navigation kiểu stack/page.
+
+■ 34. Loader optimize performance thế nào?
+
+Chỉ load component khi cần.
+
+Giảm:
+
+startup time
+memory usage
+■ 35. Flickable là gì?
+
+Base component cho:
+
+scrolling
+swipe UI
+■ 36. Anchors và Layout khác nhau?
+Anchors	Layout
+positioning manual	auto layout
+linh hoạt	responsive tốt hơn
+■ 37. Connections component trong QML dùng để làm gì?
+
+Listen signal ngoài current object.
+
+Connections {
+    target: backend
+    function onDataChanged() {}
+}
+■ 38. Context property là gì?
+
+Expose C++ object sang QML.
+
+engine.rootContext()->setContextProperty("backend", backend);
+■ 39. Register type sang QML thế nào?
+qmlRegisterType<MyClass>("App", 1, 0, "MyClass");
+■ 40. Singleton trong QML?
+
+Expose global shared object.
+
+qmlRegisterSingletonType()
+■ 41. Qt Quick và Qt Widgets khác nhau?
+Qt Widgets	Qt Quick/QML
+desktop traditional UI	modern animated UI
+C++ based	declarative
+khó animation hơn	animation mạnh
+■ 42. Scene graph trong Qt Quick là gì?
+
+Rendering architecture của Qt Quick.
+
+Optimize GPU rendering.
+
+■ 43. Vì sao QML phù hợp embedded HMI?
+animation tốt
+GPU accelerated
+responsive UI
+declarative development
+■ 44. Làm sao giao tiếp giữa C++ và QML?
+context property
+qmlRegisterType
+signal-slot
+Q_PROPERTY
+■ 45. Khi nào dùng Q_INVOKABLE?
+
+Expose method sang QML.
+
+Q_INVOKABLE void play();
+■ 46. QtConcurrent là gì?
+
+High-level API cho async task.
+
+Ví dụ:
+
+QtConcurrent::run(...)
+■ 47. Future và Promise trong Qt?
+
+Qt có:
+
+QFuture
+QPromise
+
+Cho async programming.
+
+■ 48. Model reset nguy hiểm thế nào?
+
+beginResetModel():
+
+refresh toàn bộ model
+có thể gây lag UI nếu data lớn
+■ 49. Vì sao roleNames() quan trọng trong QML?
+
+QML dùng role name để bind field.
+
+Ví dụ:
+
+text: model.title
+■ 50. Làm sao debug signal-slot issue?
+kiểm tra connect()
+verify object lifetime
+dùng qDebug()
+Qt Creator debugger
+QObject::dumpObjectTree()
+
+36. Move semantics & rvalue reference là gì?
+Cho phép "chuyển" tài nguyên thay vì copy. && là rvalue reference.
+cppstd::string s2 = std::move(s1); // s1 rỗng sau dòng này
+Dùng khi transfer ownership hoặc insert object lớn vào container.
+
+37. Virtual destructor là gì? Tại sao quan trọng?
+Nếu không có virtual ~Base() → delete qua base pointer chỉ gọi destructor của base → leak.
+Quy tắc: class nào có virtual function thì destructor cũng phải virtual.
+
+38. Undefined behavior (UB) là gì?
+Hành vi không được định nghĩa bởi C++ standard — compiler có thể làm bất cứ điều gì.
+Ví dụ: out-of-bounds, null dereference, use-after-free, data race, signed overflow.
+Quan trọng trong automotive vì đây là lý do MISRA cấm nhiều feature của C++.
+
+39. Template là gì?
+Viết code generic, reuse với nhiều type. Instantiation tại compile time — không có overhead runtime.
+cpptemplate<typename T>
+T maxVal(T a, T b) { return a > b ? a : b; }
+Lưu ý: thường đặt trong header file vì compiler cần thấy definition lúc instantiate.
+
+Multithreading
+40. Tạo thread cơ bản với std::thread.
+cppstd::thread t(task, arg);
+t.join(); // chờ thread kết thúc
+Nếu object bị destroy mà chưa join/detach → std::terminate.
+
+41. condition_variable dùng để làm gì?
+Cho thread chờ một điều kiện từ thread khác, tránh busy-waiting.
+cppcv.wait(lock, [] { return ready; }); // consumer
+cv.notify_one();                      // producer
+
+Git
+42. git cherry-pick dùng khi nào?
+Lấy một commit cụ thể từ branch khác, không merge cả branch. Hay dùng để backport hotfix.
+
+43. git bisect dùng để làm gì?
+Tìm commit gây regression bằng binary search. Hữu ích trong large codebase.
+
+44. Khi nào không nên dùng git rebase?
+Không rebase trên shared branch vì sẽ viết lại history, người khác bị diverge. Chỉ rebase trên local branch của bản thân.
+
+Automotive
+45. Classic vs Adaptive AUTOSAR khác nhau thế nào?
+
+Classic — bare-metal, RTOS, ECU truyền thống (ABS, engine control)
+Adaptive — POSIX/Linux, service-oriented, dùng cho ADAS/autonomous driving
+
+
+46. Hard vs Soft real-time là gì?
+
+Hard — miss deadline = system failure (airbag, ABS). Dùng RTOS.
+Soft — miss deadline = degraded performance (infotainment).
+
+Linux thường không đủ cho hard real-time vì scheduler không đảm bảo latency.
+
+48. CMake cơ bản — bạn đã dùng chưa?
+CMake là build system generator phổ biến nhất trong C++ ecosystem, đặc biệt trong automotive/embedded.
+cmakecmake_minimum_required(VERSION 3.10)
+project(MyProject)
+
+add_executable(my_app main.cpp utils.cpp)
+target_include_directories(my_app PRIVATE include/)
+target_compile_options(my_app PRIVATE -Wall -Wextra)
