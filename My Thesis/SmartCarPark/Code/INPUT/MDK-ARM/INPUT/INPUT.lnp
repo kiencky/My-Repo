@@ -1,0 +1,28 @@
+--cpu Cortex-M3
+"input\startup_stm32f103xb.o"
+"input\clcd_i2c.o"
+"input\rc522.o"
+"input\main.o"
+"input\stm32f1xx_it.o"
+"input\stm32f1xx_hal_msp.o"
+"input\stm32f1xx_hal_gpio_ex.o"
+"input\stm32f1xx_hal_i2c.o"
+"input\stm32f1xx_hal.o"
+"input\stm32f1xx_hal_rcc.o"
+"input\stm32f1xx_hal_rcc_ex.o"
+"input\stm32f1xx_hal_gpio.o"
+"input\stm32f1xx_hal_dma.o"
+"input\stm32f1xx_hal_cortex.o"
+"input\stm32f1xx_hal_pwr.o"
+"input\stm32f1xx_hal_flash.o"
+"input\stm32f1xx_hal_flash_ex.o"
+"input\stm32f1xx_hal_exti.o"
+"input\stm32f1xx_hal_spi.o"
+"input\stm32f1xx_hal_tim.o"
+"input\stm32f1xx_hal_tim_ex.o"
+"input\stm32f1xx_hal_uart.o"
+"input\system_stm32f1xx.o"
+--strict --scatter "INPUT\INPUT.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list "INPUT.map" -o INPUT\INPUT.axf
