@@ -9,13 +9,37 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <errno.h>
+#include <signal.h>
+#include <string.h>
 
 #include "../include/UnixSocket.h"
 #include "../include/protocol.h"
 
+static volatile sig_atomic_t g_running = 1;     // Flag to control the main loop.
+
+//-------------------------------------------
+// Note: Handle termination signals to allow graceful shutdown of the daemon.
+//
+static void handle_signal(int signo) {
+    if( signo == SIGINT || signo == SIGTERM ) {
+        g_running = 0;
+    }
+}
+
 int main()
-{
+{   
     MainDaemon *c_MainDaemon = MainDaemon::newInstance();
+
+    // Daemonize the process to run in the background.
+    if( MainDaemon::daemonize(MINISCHED_PID_FILEPATH) != 0 ) {
+        log_error("[%s:%d] Daemonize failed",__func__,__LINE__);
+        return 1;
+    }
+
+    // Set up signal handlers for graceful shutdown.
+    signal(SIGINT, handle_signal);
+    signal(SIGTERM, handle_signal);
+
     char c_buffer[MINISCHED_MAX_CMD_SIZE] = {0};
 
     // Create and start listening on the Unix domain socket.
@@ -25,7 +49,7 @@ int main()
     }
 
     // Main server loop to connect, handle one client at a time.
-    for(;;) {
+    while(g_running) {
         // Block until connect to a client.
         int client_fd = c_MainDaemon->ipc_server_accept(server_fd);
         if(client_fd < 0) {
@@ -37,9 +61,9 @@ int main()
 
         if(i_bytes > 0) {
             if( strncmp(c_buffer, "ADD", 3) == 0 ) {
-                printf("ADD Processing...\n");
+                log_out("ADD Processing...\n");
             } else if( strncmp(c_buffer, "STATUS", 6) == 0 ) {
-                printf("STATUS Processing...\n");
+                log_out("STATUS Processing...\n");
             } else {
                 // Send UNKNOWN_CMD message to client.
                 const char *resp = "UNKNOWN_CMD\n";
@@ -53,6 +77,7 @@ int main()
 
     close(server_fd);
     unlink(MINISCHED_SOCKET_PATH);
+    MainDaemon::remove_pid_file(MINISCHED_PID_FILEPATH);
     
     return 0;
 }

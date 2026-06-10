@@ -7,8 +7,10 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/un.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <errno.h>
 #include <signal.h>
 #include <stdarg.h>
@@ -23,12 +25,22 @@
 //-------------------------------------------
 void log_error(const char *fmt,...)
 {
-    va_list args;                       // Declare a container to hold the extra arguments passed after fmt.
-    va_start(args, fmt);                // Initialize args to store all arguments after fmt.
-    fprintf(stderr, "[Error] ");
-    vfprintf(stderr, fmt, args);        // args will be substituted into fmt and printed to stderr.
-    fprintf(stderr, ": %s\n", strerror(errno));
-    va_end(args);                       // Must always call va_end after using va_list to clean up.
+    int i_errno = errno;    // Save the errno before performing handling.
+    char msg[MINISCHED_MAX_STRING_SIZE];
+
+    va_list args;               // Declare a container to hold the extra arguments passed after fmt.
+    va_start(args, fmt);        // Initialize args to store all arguments after fmt.
+    vsnprintf(msg, sizeof(msg), fmt, args);      // args will be substituted into fmt and saved to msg.
+    fprintf(stderr, "[Error] %s: %s\n", msg, strerror(i_errno));
+    va_end(args);
+
+    // Write to log file.
+    int fd = open(MINISCHED_LOG_FILEPATH, O_WRONLY | O_CREAT | O_APPEND, 0664);
+
+    if( fd >= 0 ) {
+        dprintf(fd, "[Error] %s: %s\n", msg, strerror(i_errno));
+        close(fd);
+    } 
 }
 
 //-------------------------------------------
@@ -38,11 +50,20 @@ void log_error(const char *fmt,...)
 //-------------------------------------------
 void log_out(const char *fmt,...)
 {
-    va_list args;
-    va_start(args, fmt);
-    fprintf(stderr, "[Log] ");
-    vfprintf(stderr, fmt, args);
+    char msg[MINISCHED_MAX_STRING_SIZE];
+
+    va_list args;               // Declare a container to hold the extra arguments passed after fmt.
+    va_start(args, fmt);        // Initialize args to store all arguments after fmt.
+    vsnprintf(msg, sizeof(msg), fmt, args);      // args will be substituted into fmt and saved to msg.
+    fprintf(stdout, "[Log] %s\n", msg);
     va_end(args);
+
+    // Write to log file.
+    int fd = open(MINISCHED_LOG_FILEPATH, O_WRONLY | O_CREAT | O_APPEND, 0644);
+    if( fd >= 0 ) {
+        dprintf(fd, "[Log] %s\n", msg);
+        close(fd);
+    }
 }
 
 //-------------------------------------------
@@ -237,7 +258,7 @@ int MainDaemon::write_pid_file(const char *file_path)
 
     pid_t pid = getpid();
 
-    if( fprintf(fp, "%d", pid) != 0 ) {
+    if( fprintf(fp, "%d", pid) < 0 ) {
         log_error("[%s:%d] Write the PID failed.",__func__,__LINE__);
         fclose(fp);
         return -1;
@@ -323,29 +344,26 @@ int MainDaemon::daemonize(const char *file_path)
     // Allow the daemon to have full permissions to create files.
     umask(0);
 
-    close(STDIN_FILENO);     // Close standard input.
-    close(STDOUT_FILENO);    // Close standard output.
-    close(STDERR_FILENO);    // Close standard error.
+    // Redirect stdin to /dev/null: reads return EOF, no terminal input.
+    int fd_in = open("/dev/null", O_RDONLY);
+    // dup2(oldfd, newfd) to make STDIN_FILENO(0) point to fd_in.
+    if( fd_in < 0 || dup2(fd_in, STDIN_FILENO) < 0 ) {
+        log_error("[%s:%d] error with stdin",__func__,__LINE__);
+        return -1;
+    }
+    if( fd_in > STDERR_FILENO ) close(fd_in);
 
-    int fd = open("/dev/null", O_RDONLY);    // Redirect standard input, output and error to /dev/null.
-    // if( fd != -1 ) {
-    //     dup2(fd, STDIN_FILENO);
-    //     dup2(fd, STDOUT_FILENO);
-    //     dup2(fd, STDERR_FILENO);
-    //     if( fd > 2 ) {
-    //         close(fd);
-    //     }
-    // }
-    int fd1 = open("/dev/null", O_WRONLY);
-    int fd2 = open("/dev/null", O_WRONLY);
-    (void)fd;   // Suppress unused variable warning.
-    (void)fd1;
-    (void)fd2;
-
+    // Redirect stdout and stderr to /dev/null: accidental writes are discarded silently.
+    int fd_out = open("/dev/null", O_WRONLY);
+    // dup2(oldfd, newfd) to make STDOUT_FILENO(1) and STDERR_FILENO(2) point to fd_out.
+    if( fd_out < 0 || dup2(fd_out, STDOUT_FILENO) < 0 || dup2(fd_out, STDERR_FILENO) < 0 ) {
+        log_error("[%s:%d] error with stdout or stderr",__func__,__LINE__);
+        return -1;
+    }
+    if( fd_out > STDERR_FILENO ) close(fd_out);
 
     // Write the PID to the file.
     if( write_pid_file(file_path) != 0 ) {
-        log_error("[%s:%d] write pid file failed",__func__,__LINE__);
         return -1;
     }
 
