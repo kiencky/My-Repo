@@ -1,5 +1,5 @@
 //==============================================================================================
-// UnixSocket.cpp
+// unix_socket.cpp
 // Note: Unix domain socket.
 //==============================================================================================
 
@@ -15,8 +15,8 @@
 #include <signal.h>
 #include <stdarg.h>
 
-#include "../include/protocol.h"
-#include "../include/UnixSocket.h"
+#include "../../include/ipc/protocol.h"
+#include "../../include/ipc/unix_socket.h"
 
 //-------------------------------------------
 /// @brief Write the msg to stderr stream and print to the terminal as default.
@@ -31,14 +31,14 @@ void log_error(const char *fmt,...)
     va_list args;               // Declare a container to hold the extra arguments passed after fmt.
     va_start(args, fmt);        // Initialize args to store all arguments after fmt.
     vsnprintf(msg, sizeof(msg), fmt, args);      // args will be substituted into fmt and saved to msg.
-    fprintf(stderr, "[Error] %s: %s\n", msg, strerror(i_errno));
+    fprintf(stderr, "[Error] %s: %s", msg, strerror(i_errno));
     va_end(args);
 
     // Write to log file.
     int fd = open(MINISCHED_LOG_FILEPATH, O_WRONLY | O_CREAT | O_APPEND, 0664);
 
     if( fd >= 0 ) {
-        dprintf(fd, "[Error] %s: %s\n", msg, strerror(i_errno));
+        dprintf(fd, "[Error] %s: %s", msg, strerror(i_errno));
         close(fd);
     } 
 }
@@ -55,13 +55,14 @@ void log_out(const char *fmt,...)
     va_list args;               // Declare a container to hold the extra arguments passed after fmt.
     va_start(args, fmt);        // Initialize args to store all arguments after fmt.
     vsnprintf(msg, sizeof(msg), fmt, args);      // args will be substituted into fmt and saved to msg.
-    fprintf(stdout, "[Log] %s\n", msg);
+    fprintf(stdout, "[Log] %s", msg);
     va_end(args);
 
     // Write to log file.
     int fd = open(MINISCHED_LOG_FILEPATH, O_WRONLY | O_CREAT | O_APPEND, 0644);
+
     if( fd >= 0 ) {
-        dprintf(fd, "[Log] %s\n", msg);
+        dprintf(fd, "[Log] %s", msg);
         close(fd);
     }
 }
@@ -250,10 +251,8 @@ int MainDaemon::write_pid_file(const char *file_path)
     FILE *fp = fopen(file_path, "w");
 
     if(!fp) {
-        if( errno == ENOENT ) {
-            log_error("[%s:%d] fopen error",__func__,__LINE__);
-            return -1;
-        }
+        log_error("[%s:%d] fopen error",__func__,__LINE__);
+        return -1;
     }
 
     pid_t pid = getpid();
@@ -274,6 +273,9 @@ int MainDaemon::write_pid_file(const char *file_path)
 int MainDaemon::remove_pid_file(const char *file_path)
 {
     if( unlink(file_path) == -1 ) {
+        if( errno == ENOENT ) {
+            return 0;
+        }
         log_error("[%s:%d] remove pid file failed",__func__,__LINE__);
         return -1;
     }
@@ -296,7 +298,7 @@ int MainDaemon::is_daemon_existing(const char *file_path)
     }
 
     // This process is still running.
-    if( is_process_existing(pid) == 0 ) {
+    if( is_process_existing(pid) == 1 ) {
         log_out("[%s:%d] This process already exists", __func__, __LINE__);
         return -1;
     }
@@ -317,6 +319,7 @@ int MainDaemon::daemonize(const char *file_path)
         return -1;
     }
 
+    log_out("[%s:%d] Daemonizing the process...\n", __func__, __LINE__);
     pid_t pid = fork();
 
     if( pid < 0 ) {

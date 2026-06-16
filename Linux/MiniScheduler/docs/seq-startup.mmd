@@ -1,0 +1,16 @@
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant D as Daemon
+    participant IPC as Unix Socket
+    participant Q as Job Queue
+    participant W as Worker
+    participant L as Log
+
+    U->>D: start daemon
+    D->>D: load config
+    D->>IPC: create, bind, listen
+    D->>Q: init queue
+    D->>W: spawn N workers
+    W-->>D: ready
+    D->>L: log daemon started

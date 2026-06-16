@@ -10,10 +10,6 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-void log_error(const char *fmt,...);
-void log_out(const char *fmt,...);
-void usage(const char *prog);
-
 class UnixSocket {
 public:
     /// @brief  Sends the entire buffer to the specified file descriptor.
@@ -68,6 +64,11 @@ public:
 
     static pid_t read_pid_file(const char *file_path);
 
+    /// @brief  Checks if a process with the given PID exists.
+    /// @param  pid 
+    /// @return 1 : Exist.
+    ///         0 : Not exist.
+    /// @note   Uses the kill system call with signal 0 to check exist process.
     static int is_process_existing(pid_t pid);
 
     /// @brief  Writes the current process's PID to a specific file.

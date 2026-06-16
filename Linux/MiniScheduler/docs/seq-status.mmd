@@ -1,0 +1,13 @@
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant C as CLI Client
+    participant D as Daemon
+    participant S as State Store
+
+    U->>C: status
+    C->>D: StatusRequest
+    D->>S: read snapshot
+    S-->>D: jobs + stats
+    D-->>C: StatusResponse
+    C-->>U: render table

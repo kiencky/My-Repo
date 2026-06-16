@@ -7,8 +7,13 @@ CC = g++
 CFLAGS = -Wall -Wextra -O2
 
 # Source files
-INCS = include
-SRCS = src
+INC = include
+SRC = src
+
+# Dependency.
+ALL_INCS = $(shell find $(INC) -name "*.h")
+IPC_SRCS   = $(SRC)/ipc/unix_socket.cpp
+CONFIG_SRCS = $(SRC)/config/config_loader.cpp
 
 # Target executable
 all: minisched_daemon minisched_client
@@ -18,12 +23,14 @@ all: minisched_daemon minisched_client
 # <TAB> compiler flags -o target_executable source_files(input file)
 
 # For Daemon executable
-minisched_daemon: $(SRCS)/UnixSocket.cpp $(SRCS)/main_daemon.cpp $(INCS)/UnixSocket.h $(INCS)/protocol.h
-	$(CC) $(CFLAGS) -o minisched_daemon $(SRCS)/UnixSocket.cpp $(SRCS)/main_daemon.cpp
+DAEMON_SRCS = $(IPC_SRCS) $(CONFIG_SRCS) apps/daemon/main.cpp
+minisched_daemon: $(DAEMON_SRCS) $(ALL_INCS)
+	$(CC) $(CFLAGS) -o minisched_daemon $(DAEMON_SRCS)
 
 # For Client executable
-minisched_client: $(SRCS)/UnixSocket.cpp $(SRCS)/main_client.cpp $(INCS)/UnixSocket.h $(INCS)/protocol.h
-	$(CC) $(CFLAGS) -o minisched_client $(SRCS)/UnixSocket.cpp $(SRCS)/main_client.cpp
+CLIENT_SRCS = $(IPC_SRCS) $(CONFIG_SRCS) apps/client/main.cpp
+minisched_client: $(CLIENT_SRCS) $(ALL_INCS)
+	$(CC) $(CFLAGS) -o minisched_client $(CLIENT_SRCS)
 
 # Clean up the executables
 clean:

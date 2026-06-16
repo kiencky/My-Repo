@@ -1,0 +1,32 @@
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant C as CLI Client
+    participant D as Daemon
+    participant Q as Job Queue
+    participant W as Worker
+    participant EX as Executor
+    participant S as State Store
+    participant L as Log
+
+    U->>C: add "command"
+    C->>D: AddJobRequest
+    D->>D: validate request
+    D->>Q: enqueue(job=PENDING)
+    D->>S: persist metadata
+    D->>L: log accepted
+    D-->>C: AddJobResponse(job_id)
+    C-->>U: show job_id
+
+    W->>Q: dequeue
+    W->>S: state PENDING->RUNNING
+    W->>L: log running
+    W->>EX: exec command
+    EX-->>W: exit code
+    alt exit code == 0
+        W->>S: state RUNNING->DONE
+        W->>L: log done
+    else exit code != 0
+        W->>S: state RUNNING->FAILED
+        W->>L: log failed
+    end

@@ -1,0 +1,15 @@
+[Log] Starting the MiniScheduler daemon...
+
+[Log] [daemonize:322] Daemonizing the process...
+
+[Error] [main:51]UNKNOWN COMMAND: addfds
+: Success
+[Error] [main:51]UNKNOWN COMMAND: fas
+: Success
+[Error] [ipc_client_connect:405] connect error: Connection refused
+[Log] Starting the MiniScheduler daemon...
+
+[Log] [daemonize:322] Daemonizing the process...
+
+[Log] [main:51]UNKNOWN COMMAND: ầ
+
