@@ -75,10 +75,10 @@ int main(int argc, char* argv[])
         close(client_fd);
         return 1;
     } else {
-        log_out("[%s:%d] Receive: %s\n", __func__, __LINE__, resp);
+        log_out("[%s:%d] Receive: %s", __func__, __LINE__, resp);
     }
 
     close(client_fd);
-    
+
     return 0;
 }

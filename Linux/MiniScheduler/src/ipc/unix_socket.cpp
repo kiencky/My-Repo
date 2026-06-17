@@ -101,7 +101,7 @@ int UnixSocket::ipc_send_all(int fd, const char *buffer, size_t length)
     while( total_sent < length ) {
         int sent = write(fd, buffer + total_sent, length - total_sent);
         if( sent < 0 ) {
-            log_error("[%s:%d] write error",__func__,__LINE__);
+            log_error("[%s:%d] write error\n",__func__,__LINE__);
             return -1;
         }
 
@@ -125,7 +125,7 @@ int UnixSocket::ipc_recv_line(int fd, char *buffer, size_t max_length)
         int bytes_read = read(fd, &data, 1);
         
         if( bytes_read == -1 ) {
-            log_error("[%s:%d] read error",__func__,__LINE__);
+            log_error("[%s:%d] read error\n",__func__,__LINE__);
             return -1;
         } else if( bytes_read == 0 ) {
             // EOF reached, break the loop.
@@ -154,7 +154,7 @@ int MainDaemon::ipc_server_listen(const char *socket_path)
     // AF_UNIX specifies Unix domain sockets, SOCK_STREAM indicates a stream-oriented socket (like TCP), 0 to use the default protocol.
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd == -1) {
-        log_error("[%s:%d] create socket error",__func__,__LINE__);
+        log_error("[%s:%d] create socket error\n",__func__,__LINE__);
         return -1;
     }
 
@@ -167,14 +167,14 @@ int MainDaemon::ipc_server_listen(const char *socket_path)
 
     // Bind the socket to the specified path.
     if( bind(fd, (struct sockaddr*)&addr, sizeof(addr)) == -1 ) {
-        log_error("[%s:%d] bind error",__func__,__LINE__);
+        log_error("[%s:%d] bind error\n",__func__,__LINE__);
         close(fd);
         return -1;
     }
 
     // Listen for incoming connections. The maximum number of pending connections is 5.
     if( listen(fd, 5) == -1 ) {
-        log_error("[%s:%d] listen error",__func__,__LINE__);
+        log_error("[%s:%d] listen error\n",__func__,__LINE__);
         close(fd);
         return -1;
     }
@@ -191,7 +191,7 @@ int MainDaemon::ipc_server_accept(int server_fd)
     // Accept a new client connection. The function blocks until a client connects.
     int client_fd = accept(server_fd, NULL, NULL);
     if( client_fd == -1 ) {
-        log_error("[%s:%d] accept error",__func__,__LINE__);
+        log_error("[%s:%d] accept error\n",__func__,__LINE__);
         return -1;
     }
 
@@ -226,7 +226,7 @@ pid_t MainDaemon::read_pid_file(const char *file_path)
             // No such file or directory.
             return 0;
         }
-        log_error("[%s:%d] fopen error",__func__,__LINE__);
+        log_error("[%s:%d] fopen error\n",__func__,__LINE__);
         return -1;
     }
 
@@ -234,7 +234,7 @@ pid_t MainDaemon::read_pid_file(const char *file_path)
 
     if( fscanf(fp, "%d", &pid) != 1 ) {
         // Empty file or wrong format.
-        log_error("[%s:%d] Empty or wrong format file.",__func__,__LINE__);
+        log_error("[%s:%d] Empty or wrong format file.\n",__func__,__LINE__);
         fclose(fp);
         return 0;
     }
@@ -251,14 +251,14 @@ int MainDaemon::write_pid_file(const char *file_path)
     FILE *fp = fopen(file_path, "w");
 
     if(!fp) {
-        log_error("[%s:%d] fopen error",__func__,__LINE__);
+        log_error("[%s:%d] fopen error\n",__func__,__LINE__);
         return -1;
     }
 
     pid_t pid = getpid();
 
     if( fprintf(fp, "%d", pid) < 0 ) {
-        log_error("[%s:%d] Write the PID failed.",__func__,__LINE__);
+        log_error("[%s:%d] Write the PID failed.\n",__func__,__LINE__);
         fclose(fp);
         return -1;
     }
@@ -276,7 +276,7 @@ int MainDaemon::remove_pid_file(const char *file_path)
         if( errno == ENOENT ) {
             return 0;
         }
-        log_error("[%s:%d] remove pid file failed",__func__,__LINE__);
+        log_error("[%s:%d] remove pid file failed\n",__func__,__LINE__);
         return -1;
     }
 
@@ -290,7 +290,7 @@ int MainDaemon::is_daemon_existing(const char *file_path)
 {
     pid_t pid = read_pid_file(file_path);
     if( pid < 0 ) {
-        log_error("[%s:%d] read pid file failed",__func__,__LINE__);
+        log_error("[%s:%d] read pid file failed\n",__func__,__LINE__);
         return -1;
     } else if ( pid == 0) {
         // The pid file is empty, no daemon is running.
@@ -299,7 +299,7 @@ int MainDaemon::is_daemon_existing(const char *file_path)
 
     // This process is still running.
     if( is_process_existing(pid) == 1 ) {
-        log_out("[%s:%d] This process already exists", __func__, __LINE__);
+        log_out("[%s:%d] This process already exists\n",__func__, __LINE__);
         return -1;
     }
 
@@ -315,7 +315,7 @@ int MainDaemon::is_daemon_existing(const char *file_path)
 int MainDaemon::daemonize(const char *file_path)
 {
     if( is_daemon_existing(file_path) != 0 ) {
-        log_error("[%s:%d] Daemon already exists or error occurred",__func__,__LINE__);
+        log_error("[%s:%d] Daemon already exists or error occurred\n",__func__,__LINE__);
         return -1;
     }
 
@@ -323,7 +323,7 @@ int MainDaemon::daemonize(const char *file_path)
     pid_t pid = fork();
 
     if( pid < 0 ) {
-        log_error("[%s:%d] fork error",__func__,__LINE__);
+        log_error("[%s:%d] fork error\n",__func__,__LINE__);
         return -1;
     }
 
@@ -334,13 +334,13 @@ int MainDaemon::daemonize(const char *file_path)
 // The child process.
     // Detach child process from TTY(Controllign terminal).
     if( setsid() < 0 ) {
-        log_error("[%s:%d] setsid error",__func__,__LINE__);
+        log_error("[%s:%d] setsid error\n",__func__,__LINE__);
         return -1;
     }
 
     // Change the current working directory to root to avoid blocking unmounting of filesystems.
     if( chdir("/") < 0 ) {
-        log_error("[%s:%d] chdir error",__func__,__LINE__);
+        log_error("[%s:%d] chdir error\n",__func__,__LINE__);
         return -1;
     }
 
@@ -351,7 +351,7 @@ int MainDaemon::daemonize(const char *file_path)
     int fd_in = open("/dev/null", O_RDONLY);
     // dup2(oldfd, newfd) to make STDIN_FILENO(0) point to fd_in.
     if( fd_in < 0 || dup2(fd_in, STDIN_FILENO) < 0 ) {
-        log_error("[%s:%d] error with stdin",__func__,__LINE__);
+        log_error("[%s:%d] error with stdin\n",__func__,__LINE__);
         return -1;
     }
     if( fd_in > STDERR_FILENO ) close(fd_in);
@@ -360,7 +360,7 @@ int MainDaemon::daemonize(const char *file_path)
     int fd_out = open("/dev/null", O_WRONLY);
     // dup2(oldfd, newfd) to make STDOUT_FILENO(1) and STDERR_FILENO(2) point to fd_out.
     if( fd_out < 0 || dup2(fd_out, STDOUT_FILENO) < 0 || dup2(fd_out, STDERR_FILENO) < 0 ) {
-        log_error("[%s:%d] error with stdout or stderr",__func__,__LINE__);
+        log_error("[%s:%d] error with stdout or stderr\n",__func__,__LINE__);
         return -1;
     }
     if( fd_out > STDERR_FILENO ) close(fd_out);
@@ -391,7 +391,7 @@ int MainClient::ipc_client_connect(const char *socket_path)
     // AF_UNIX specifies Unix domain sockets, SOCK_STREAM indicates a stream-oriented socket (like TCP), 0 to use the default protocol.
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if( fd == -1 ) {
-        log_error("[%s:%d] create socket error",__func__,__LINE__);
+        log_error("[%s:%d] create socket error\n",__func__,__LINE__);
         return -1;
     }
 
@@ -402,7 +402,7 @@ int MainClient::ipc_client_connect(const char *socket_path)
 
     // Connect to the server socket at the specified path.
     if( connect(fd, (struct sockaddr*) &addr, sizeof(addr)) == -1 ) {
-        log_error("[%s:%d] connect error",__func__,__LINE__);
+        log_error("[%s:%d] connect error\n",__func__,__LINE__);
         close(fd);
         return -1;
     }

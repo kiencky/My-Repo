@@ -5,6 +5,7 @@
 # Compiler and flags
 CC = g++
 CFLAGS = -Wall -Wextra -O2
+PTHREAD = -pthread
 
 # Source files
 INC = include
@@ -14,6 +15,7 @@ SRC = src
 ALL_INCS = $(shell find $(INC) -name "*.h")
 IPC_SRCS   = $(SRC)/ipc/unix_socket.cpp
 CONFIG_SRCS = $(SRC)/config/config_loader.cpp
+SCHEDULER_SRCS = $(SRC)/scheduler/job_queue.cpp
 
 # Target executable
 all: minisched_daemon minisched_client
@@ -23,14 +25,14 @@ all: minisched_daemon minisched_client
 # <TAB> compiler flags -o target_executable source_files(input file)
 
 # For Daemon executable
-DAEMON_SRCS = $(IPC_SRCS) $(CONFIG_SRCS) apps/daemon/main.cpp
+DAEMON_SRCS = $(IPC_SRCS) $(CONFIG_SRCS) $(SCHEDULER_SRCS) apps/daemon/main.cpp
 minisched_daemon: $(DAEMON_SRCS) $(ALL_INCS)
-	$(CC) $(CFLAGS) -o minisched_daemon $(DAEMON_SRCS)
+	$(CC) $(CFLAGS) $(PTHREAD) -o minisched_daemon $(DAEMON_SRCS)
 
 # For Client executable
 CLIENT_SRCS = $(IPC_SRCS) $(CONFIG_SRCS) apps/client/main.cpp
 minisched_client: $(CLIENT_SRCS) $(ALL_INCS)
-	$(CC) $(CFLAGS) -o minisched_client $(CLIENT_SRCS)
+	$(CC) $(CFLAGS) $(PTHREAD) -o minisched_client $(CLIENT_SRCS)
 
 # Clean up the executables
 clean:

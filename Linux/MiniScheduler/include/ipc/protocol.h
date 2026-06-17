@@ -6,8 +6,9 @@
 #define PROTOCOL_H
 
 
-#define MINISCHED_MAX_CMD_SIZE      1024                     // Maximum length for a single command line.
+#define MINISCHED_MAX_CMD_SIZE      1024                // Maximum length for a single command line.
 #define MINISCHED_MAX_STRING_SIZE   1024
+#define MINISCHED_MAX_JOBS          100                 // Maximum number of jobs that can be handled.
 
 #define MINISCHED_PID_FILEPATH      "/tmp/minisched.pid"
 #define MINISCHED_CONFIG_FILEPATH   "config/minisched.conf"
