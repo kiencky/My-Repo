@@ -15,7 +15,7 @@ SRC = src
 ALL_INCS = $(shell find $(INC) -name "*.h")
 IPC_SRCS   = $(SRC)/ipc/unix_socket.cpp
 CONFIG_SRCS = $(SRC)/config/config_loader.cpp
-SCHEDULER_SRCS = $(SRC)/scheduler/job_queue.cpp
+JOB_SRCS = $(SRC)/job/job_queue.cpp
 
 # Target executable
 all: minisched_daemon minisched_client
@@ -25,7 +25,7 @@ all: minisched_daemon minisched_client
 # <TAB> compiler flags -o target_executable source_files(input file)
 
 # For Daemon executable
-DAEMON_SRCS = $(IPC_SRCS) $(CONFIG_SRCS) $(SCHEDULER_SRCS) apps/daemon/main.cpp
+DAEMON_SRCS = $(IPC_SRCS) $(CONFIG_SRCS) $(JOB_SRCS) apps/daemon/main.cpp
 minisched_daemon: $(DAEMON_SRCS) $(ALL_INCS)
 	$(CC) $(CFLAGS) $(PTHREAD) -o minisched_daemon $(DAEMON_SRCS)
 

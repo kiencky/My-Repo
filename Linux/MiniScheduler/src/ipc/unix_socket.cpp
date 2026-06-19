@@ -31,14 +31,30 @@ void log_error(const char *fmt,...)
     va_list args;               // Declare a container to hold the extra arguments passed after fmt.
     va_start(args, fmt);        // Initialize args to store all arguments after fmt.
     vsnprintf(msg, sizeof(msg), fmt, args);      // args will be substituted into fmt and saved to msg.
-    fprintf(stderr, "[Error] %s: %s", msg, strerror(i_errno));
+    
+    if( i_errno == 0 ) {        // If errno is 0, just print the message without error description.
+        fprintf(stderr, "[Error]%s", msg);
+    } else {
+        fprintf(stderr, "[Error]%s: %s", msg, strerror(i_errno));
+    }
+
     va_end(args);
 
+    // Get the absolute log path.
+    char cwd[512] = {0};
+    char log_path[1024] = {0};
+    get_absolute_path(cwd, sizeof(cwd));
+    snprintf(log_path, sizeof(log_path), MINISCHED_LOG_FILEPATH, cwd);
+
     // Write to log file.
-    int fd = open(MINISCHED_LOG_FILEPATH, O_WRONLY | O_CREAT | O_APPEND, 0664);
+    int fd = open(log_path, O_WRONLY | O_CREAT | O_APPEND, 0664);
 
     if( fd >= 0 ) {
-        dprintf(fd, "[Error] %s: %s", msg, strerror(i_errno));
+        if( i_errno == 0 ) {
+            dprintf(fd, "[Error]%s", msg);
+        } else {
+            dprintf(fd, "[Error]%s: %s", msg, strerror(i_errno));
+        }
         close(fd);
     } 
 }
@@ -55,14 +71,20 @@ void log_out(const char *fmt,...)
     va_list args;               // Declare a container to hold the extra arguments passed after fmt.
     va_start(args, fmt);        // Initialize args to store all arguments after fmt.
     vsnprintf(msg, sizeof(msg), fmt, args);      // args will be substituted into fmt and saved to msg.
-    fprintf(stdout, "[Log] %s", msg);
+    fprintf(stdout, "[Log]%s", msg);
     va_end(args);
 
+    // Get the absolute log path.
+    char cwd[512] = {0};
+    char log_path[1024] = {0};
+    get_absolute_path(cwd, sizeof(cwd));
+    snprintf(log_path, sizeof(log_path), MINISCHED_LOG_FILEPATH, cwd);
+
     // Write to log file.
-    int fd = open(MINISCHED_LOG_FILEPATH, O_WRONLY | O_CREAT | O_APPEND, 0644);
+    int fd = open(log_path, O_WRONLY | O_CREAT | O_APPEND, 0644);
 
     if( fd >= 0 ) {
-        dprintf(fd, "[Log] %s", msg);
+        dprintf(fd, "[Log]%s", msg);
         close(fd);
     }
 }
@@ -79,6 +101,22 @@ void usage(const char *prog) {
     fprintf(stderr, "%s add \"cmd...\"\n", prog);
     fprintf(stderr, "%s status\n", prog);
     fflush(stderr);
+}
+
+/// @brief Get the absolute path of the current working directory.
+/// @param abs_path 
+/// @param max_length 
+/// @return 
+int get_absolute_path(char *abs_path, size_t max_length)
+{
+    char cwd[512] = {0};
+    if( getcwd(cwd, sizeof(cwd)) == NULL ) {
+        log_error("[%s:%d] getcwd error\n", __func__, __LINE__);
+        return -1;
+    }
+
+    snprintf(abs_path, max_length, "%s", cwd);
+    return 0;
 }
 
 //-------------------------------------------

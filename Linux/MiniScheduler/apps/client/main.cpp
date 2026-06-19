@@ -32,7 +32,8 @@ int main(int argc, char* argv[])
 
     if( strcmp(argv[1], "add") == 0 ) {
         if( argc < 3 ) {
-            // If the command line has less than 3 parameters, show the usage instruction and return error.
+        // If the command line has less than 3 parameters, show the usage instruction and return error.
+            log_error("[%s:%d] Missing command to add\n",__func__,__LINE__);
             usage(argv[0]);
             return 1;
         } else {
@@ -40,7 +41,8 @@ int main(int argc, char* argv[])
         }
     } else if( strcmp(argv[1], "status") == 0) {
         if( argc > 2 ) {
-            // If the command line has more than 2 parameters, show the usage instruction and return error.
+        // If the command line has more than 2 parameters, show the usage instruction and return error.
+            log_error("[%s:%d] Exceed parameters for status command\n",__func__,__LINE__);
             usage(argv[0]);
             return 1;
         } else {
@@ -48,7 +50,7 @@ int main(int argc, char* argv[])
         }
     } else {
         // If the command is invalid, show the usage instruction and return error.
-        log_out("[%s:%d]UNKNOWN COMMAND: %s\n",__func__,__LINE__,argv[1]);
+        log_error("[%s:%d]UNKNOWN COMMAND: %s\n",__func__,__LINE__,argv[1]);
         usage(argv[0]);
         return 1;
     }
@@ -62,7 +64,7 @@ int main(int argc, char* argv[])
 
     // Send data to the daemon.
     if( c_MainClient->ipc_send_all(client_fd, buffer, strlen(buffer)) < 0 ) {
-        log_out("[%s:%d] Send error\n", __func__, __LINE__);
+        log_error("[%s:%d] Send error\n", __func__, __LINE__);
         close(client_fd);
         return 1;
     }
@@ -71,11 +73,11 @@ int main(int argc, char* argv[])
 
     // Receive the data from the daemon.
     if( c_MainClient->ipc_recv_line(client_fd, resp, sizeof(resp)) < 0) {
-        log_out("[%s:%d] Receive error\n", __func__, __LINE__);
+        log_error("[%s:%d] Receive error\n", __func__, __LINE__);
         close(client_fd);
         return 1;
     } else {
-        log_out("[%s:%d] Receive: %s", __func__, __LINE__, resp);
+        log_out("[%s:%d] Receive: %s\n", __func__, __LINE__, resp);
     }
 
     close(client_fd);
