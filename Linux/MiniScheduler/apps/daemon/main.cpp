@@ -144,10 +144,11 @@ int main()
     config_load(MINISCHED_CONFIG_FILEPATH, &config);
 
     // Get the absolute log path.
-    char cwd[512] = {0};
     char log_path[1024] = {0};
-    get_absolute_path(cwd, sizeof(cwd));
-    snprintf(log_path, sizeof(log_path), MINISCHED_LOG_FILEPATH, cwd);
+    if( log_path_init(log_path, sizeof(log_path)) != 0 ) {
+        printf("[%s:%d] Failed to initialize log path\n",__func__,__LINE__);
+        return 1;
+    }
     
     // Create or clear the log file.
     int log_fd = open(log_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
@@ -277,13 +278,13 @@ int main()
                         job_t job = g_scheduler.history_jobs[job_index];
                         int n = snprintf( resp + offset,
                                     sizeof(resp) - offset,
-                                    "%-4d %-6d %-9s %-18s %-18s %-18s %s\r\n",
+                                    "%-4d %-6d %-9s %-18lld %-18lld %-18lld %s\r\n",
                                     job.id,
                                     job.pid,
                                     job.state,
-                                    job.created_time,
-                                    job.started_time,
-                                    job.finished_time,
+                                    (long long)job.created_time,
+                                    (long long)job.started_time,
+                                    (long long)job.finished_time,
                                     job.command );
                         
                         // If there is an error or no more space to write, break the loop.

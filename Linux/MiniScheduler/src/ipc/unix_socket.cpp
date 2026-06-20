@@ -1,6 +1,7 @@
 //==============================================================================================
 // unix_socket.cpp
 // Note: Unix domain socket.
+//      - Shared memory is used to store the log path, so that both the daemon and the client can write logs to the same file.
 //==============================================================================================
 
 #include <stdio.h>
@@ -14,80 +15,20 @@
 #include <errno.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <time.h>
+#include <sys/mman.h>
 
 #include "../../include/ipc/protocol.h"
 #include "../../include/ipc/unix_socket.h"
 
-//-------------------------------------------
-/// @brief Write the msg to stderr stream and print to the terminal as default.
-/// @param  
-/// @return 
-//-------------------------------------------
-void log_error(const char *fmt,...)
-{
-    int i_errno = errno;    // Save the errno before performing handling.
-    char msg[MINISCHED_MAX_STRING_SIZE];
+// Structure to hold the log path in shared memory.
+typedef struct {
+    char log_path[1024];
+    size_t initialized;
+} shared_log_path_t;
 
-    va_list args;               // Declare a container to hold the extra arguments passed after fmt.
-    va_start(args, fmt);        // Initialize args to store all arguments after fmt.
-    vsnprintf(msg, sizeof(msg), fmt, args);      // args will be substituted into fmt and saved to msg.
-    
-    if( i_errno == 0 ) {        // If errno is 0, just print the message without error description.
-        fprintf(stderr, "[Error]%s", msg);
-    } else {
-        fprintf(stderr, "[Error]%s: %s", msg, strerror(i_errno));
-    }
+static char g_log_path[1024] = {0};    // Global variable to hold the log path.
 
-    va_end(args);
-
-    // Get the absolute log path.
-    char cwd[512] = {0};
-    char log_path[1024] = {0};
-    get_absolute_path(cwd, sizeof(cwd));
-    snprintf(log_path, sizeof(log_path), MINISCHED_LOG_FILEPATH, cwd);
-
-    // Write to log file.
-    int fd = open(log_path, O_WRONLY | O_CREAT | O_APPEND, 0664);
-
-    if( fd >= 0 ) {
-        if( i_errno == 0 ) {
-            dprintf(fd, "[Error]%s", msg);
-        } else {
-            dprintf(fd, "[Error]%s: %s", msg, strerror(i_errno));
-        }
-        close(fd);
-    } 
-}
-
-//-------------------------------------------
-/// @brief  Write the msg to stdout stream and print to the terminal as default.
-/// @param  
-/// @return 
-//-------------------------------------------
-void log_out(const char *fmt,...)
-{
-    char msg[MINISCHED_MAX_STRING_SIZE];
-
-    va_list args;               // Declare a container to hold the extra arguments passed after fmt.
-    va_start(args, fmt);        // Initialize args to store all arguments after fmt.
-    vsnprintf(msg, sizeof(msg), fmt, args);      // args will be substituted into fmt and saved to msg.
-    fprintf(stdout, "[Log]%s", msg);
-    va_end(args);
-
-    // Get the absolute log path.
-    char cwd[512] = {0};
-    char log_path[1024] = {0};
-    get_absolute_path(cwd, sizeof(cwd));
-    snprintf(log_path, sizeof(log_path), MINISCHED_LOG_FILEPATH, cwd);
-
-    // Write to log file.
-    int fd = open(log_path, O_WRONLY | O_CREAT | O_APPEND, 0644);
-
-    if( fd >= 0 ) {
-        dprintf(fd, "[Log]%s", msg);
-        close(fd);
-    }
-}
 
 //-------------------------------------------
 /// @brief  Print the usage instructions.
@@ -103,19 +44,258 @@ void usage(const char *prog) {
     fflush(stderr);
 }
 
-/// @brief Get the absolute path of the current working directory.
-/// @param abs_path 
+//-------------------------------------------
+/// @brief Write the msg to stderr stream and print to the terminal as default.
+/// @param  
+/// @return 
+//-------------------------------------------
+void log_error(const char *fmt,...)
+{
+    int log_flag = 0;       // Flag to prevent recursive logging.
+    int i_errno = errno;    // Save the errno before performing handling.
+    char msg[MINISCHED_MAX_STRING_SIZE];
+
+    va_list args;               // Declare a container to hold the extra arguments passed after fmt.
+    va_start(args, fmt);        // Initialize args to store all arguments after fmt.
+    vsnprintf(msg, sizeof(msg), fmt, args);      // args will be substituted into fmt and saved to msg.
+    
+    if( i_errno == 0 ) {        // If errno is 0, just print the message without error description.
+        fprintf(stderr, "[Error]%s", msg);
+    } else {
+        fprintf(stderr, "[Error]%s: %s", msg, strerror(i_errno));
+    }
+
+    va_end(args);
+
+    if( log_flag == 1 ) return;
+    log_flag = 1;
+
+    // Get the absolute log path.
+    if( g_log_path[0] == '\0' ) {
+        if( get_absolute_log_path(g_log_path, sizeof(g_log_path)) != 0 ) {
+            strncpy(g_log_path, MINISCHED_TEMP_LOG_FILEPATH, sizeof(g_log_path) - 1);
+            g_log_path[sizeof(g_log_path) - 1] = '\0';
+        }
+    }
+
+        // Write to log file.
+    int fd = open(g_log_path, O_WRONLY | O_CREAT | O_APPEND, 0664);
+
+    if( fd >= 0 ) {
+        if( i_errno == 0 ) {
+            dprintf(fd, "[Error]%s", msg);
+        } else {
+            dprintf(fd, "[Error]%s: %s", msg, strerror(i_errno));
+        }
+        close(fd);
+    }
+
+    log_flag = 0;
+    return;
+}
+
+//-------------------------------------------
+/// @brief  Write the msg to stdout stream and print to the terminal as default.
+/// @param  
+/// @return 
+//-------------------------------------------
+void log_out(const char *fmt,...)
+{
+    int log_flag = 0;       // Flag to prevent recursive logging.
+    char msg[MINISCHED_MAX_STRING_SIZE];
+
+    va_list args;               // Declare a container to hold the extra arguments passed after fmt.
+    va_start(args, fmt);        // Initialize args to store all arguments after fmt.
+    vsnprintf(msg, sizeof(msg), fmt, args);      // args will be substituted into fmt and saved to msg.
+    fprintf(stdout, "[Log]%s", msg);
+    va_end(args);
+
+    if( log_flag == 1 ) return;
+    log_flag = 1;
+
+    // Get the absolute log path.
+    if( g_log_path[0] == '\0' ) {
+        if( get_absolute_log_path(g_log_path, sizeof(g_log_path)) != 0 ) {
+            strncpy(g_log_path, MINISCHED_TEMP_LOG_FILEPATH, sizeof(g_log_path) - 1);
+            g_log_path[sizeof(g_log_path) - 1] = '\0';
+        }
+    }
+
+    // Write to log file.
+    int fd = open(g_log_path, O_WRONLY | O_CREAT | O_APPEND, 0644);
+
+    if( fd >= 0 ) {
+        dprintf(fd, "[Log]%s", msg);
+        close(fd);
+    }
+
+    log_flag = 0;
+    return;
+}
+
+/// @brief  Initializes the log path by remove the old shared memory object and create a new one.
+/// @param log_path 
 /// @param max_length 
 /// @return 
-int get_absolute_path(char *abs_path, size_t max_length)
+int log_path_init(char *log_path, size_t max_length)
 {
-    char cwd[512] = {0};
-    if( getcwd(cwd, sizeof(cwd)) == NULL ) {
-        log_error("[%s:%d] getcwd error\n", __func__, __LINE__);
+    if( log_path == NULL || max_length == 0 ) {
+        printf("[%s:%d] Invalid parameters\n",__func__,__LINE__);
         return -1;
     }
 
-    snprintf(abs_path, max_length, "%s", cwd);
+    // If the shared memory object already exists, remove it.
+    if( read_log_path_shm(log_path, max_length) == 0 ) {
+        char rm_shm_cmd[512] = {0};
+        snprintf(rm_shm_cmd, sizeof(rm_shm_cmd), "rm -f/dev/shm%s", MINISCHED_LOGPATH_SHM_NAME);
+        system(rm_shm_cmd);
+    }
+
+    memset(log_path, 0, max_length);
+
+    // Get the absolute log path and write it to the shared memory.
+    if( get_absolute_log_path(log_path, max_length) != 0 ) {
+        printf("[%s:%d] Failed to get absolute log path\n",__func__,__LINE__);
+        return -1;
+    }
+
+    return 0;
+}
+
+/// @brief Get the absolute log path of the current working directory.
+/// @param  
+/// @return -1 : Error.
+///         0  : Success.
+int get_absolute_log_path(char *log_path, size_t max_length)
+{
+    if( log_path == NULL || max_length == 0 ) {
+        log_error("[%s:%d] Invalid parameters\n",__func__,__LINE__);
+        return -1;
+    }
+
+    char c_log_path[1024];
+    memset(c_log_path, 0, sizeof(c_log_path));
+
+    // Read the log path from the shared memory.
+    // If the log path is not initialized, create a new log path and write it to the shared memery.
+    if( read_log_path_shm(c_log_path, max_length) != 0 ) {
+        char cwd[512] = {0};
+
+        if( getcwd(cwd, sizeof(cwd)) == NULL || strcmp(cwd, "/") == 0) {
+        // If the current working directory is not available or is root, use the temporary log path.
+            log_error("[%s:%d] getcwd error or current working directory is root\n",__func__,__LINE__);
+            strncpy(c_log_path, MINISCHED_TEMP_LOG_FILEPATH, sizeof(c_log_path) - 1);
+            c_log_path[sizeof(c_log_path) - 1] = '\0';
+        } else {
+        // Create a new log path based on the current working directory.
+            snprintf(c_log_path, sizeof(c_log_path), MINISCHED_LOG_FILEPATH, cwd, (long long)(time(NULL)));
+
+            // Write the new log path to the shared memory.
+            if( write_log_path_shm(c_log_path) == -1 ) {
+                log_error("[%s:%d] write log path to shared memory failed\n",__func__,__LINE__);
+                return -1;
+            }
+        }
+    }
+
+    if( max_length < strlen(c_log_path) + 1 ) {
+        log_error("[%s:%d] log path buffer is too small\n",__func__,__LINE__);
+        return -1;
+    }
+
+    strncpy(g_log_path, c_log_path, sizeof(g_log_path) - 1);
+    g_log_path[sizeof(g_log_path) - 1] = '\0';
+
+    strncpy(log_path, c_log_path, max_length - 1);
+    log_path[max_length-1] = '\0';
+    
+    return 0;
+}
+
+/// @brief  Write the log path to the shared memory.
+/// @param  file_path 
+/// @return 
+/// @note   
+int write_log_path_shm(const char* file_path)
+{
+    if( file_path == NULL && file_path[0] == '\0') {
+        log_error("[%s:%d] Invalid file path\n",__func__,__LINE__);
+        return -1;
+    }
+
+    int fd = shm_open(MINISCHED_LOGPATH_SHM_NAME, O_CREAT | O_RDWR, 0666);
+    if( fd < 0 ) {
+        log_error("[%s:%d] shm_open error\n",__func__,__LINE__);
+        return -1;
+    }
+
+    if( ftruncate(fd, sizeof(shared_log_path_t)) < 0 ) {
+        log_error("[%s:%d] ftruncate error\n",__func__,__LINE__);
+        close(fd);
+        return -1;
+    }
+
+    shared_log_path_t *shared = (shared_log_path_t*)mmap(NULL, sizeof(shared_log_path_t),
+                                 PROT_READ | PROT_WRITE,
+                                 MAP_SHARED,
+                                 fd, 0);
+
+    if( shared == MAP_FAILED ) {
+        log_error("[%s:%d] mmap error\n",__func__,__LINE__);
+        close(fd);
+        return -1;
+    }
+
+    memset(shared, 0, sizeof(*shared));
+    strncpy(shared->log_path, file_path, sizeof(shared->log_path) - 1);
+    shared->initialized = 1;
+
+    munmap(shared, sizeof(shared_log_path_t));
+    close(fd);
+    return 0;
+}
+
+/// @brief  Read the log path from the shared memory.
+/// @param  log_path 
+/// @param  max_length 
+/// @return 
+/// @note   
+int read_log_path_shm(char *log_path, size_t max_length)
+{
+    if( log_path == NULL || max_length == 0 ) {
+        log_error("[%s:%d] Invalid parameters\n",__func__,__LINE__);
+        return -1;
+    }
+
+    int fd = shm_open(MINISCHED_LOGPATH_SHM_NAME, O_RDONLY, 0666);
+    if( fd < 0 ) {
+        // ENOENT is expected when shared memory hasn't been created yet.
+        return -1;
+    }
+
+    shared_log_path_t *shared = (shared_log_path_t*)mmap(NULL, sizeof(shared_log_path_t),
+                                 PROT_READ,
+                                 MAP_SHARED,
+                                 fd, 0);
+
+    if( shared == MAP_FAILED ) {
+        log_error("[%s:%d] mmap error\n",__func__,__LINE__);
+        close(fd);
+        return -1;
+    }
+
+    if( shared->initialized == 0 || max_length < strlen(shared->log_path) + 1 || shared->log_path[0] == '\0') {
+        log_error("[%s:%d] Log path is not initialized or buffer is invalid\n",__func__,__LINE__);
+        munmap(shared, sizeof(shared_log_path_t));
+        close(fd);
+        return -1;
+    }
+    
+    strncpy(log_path, shared->log_path, sizeof(max_length) - 1);
+
+    munmap(shared, sizeof(shared_log_path_t));
+    close(fd);
+
     return 0;
 }
 
