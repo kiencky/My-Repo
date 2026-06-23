@@ -26,7 +26,7 @@ int config_load(const char *file_path, minisched_config_t *config)
     FILE* fp = fopen(file_path, "r");
     if(!fp) {
         // If the file is not found, use defaults and return success.
-        log_error("[%s:%d] Config file not found, using defaults.", __func__, __LINE__);
+        log_error("[%s][%s:%d] Config file not found, using defaults.", __FILE__,__func__,__LINE__);
         return 0;
     }
 

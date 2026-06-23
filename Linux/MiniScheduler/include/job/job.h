@@ -22,14 +22,14 @@ typedef enum {
 
 // Job information.
 typedef struct {
-    size_t id;                                 // Job ID.
+    size_t id;                              // Job ID.
     char command[MINISCHED_MAX_CMD_SIZE];   // Command to execute.
     job_state_t state;                      // Current state.
     pid_t pid;                              // Worker process ID.
     int exit_code;                          // Exit code after completion.
-    time_t created_time;                    // Created time of the job.
-    time_t started_time;                    // Started time of the job.
-    time_t finished_time;                   // Finished time of the job.
+    char created_time[64];                  // Created time of the job.
+    char started_time[64];                  // Started time of the job.
+    char finished_time[64];                 // Finished time of the job.
 } job_t;
 
 // Job queue.

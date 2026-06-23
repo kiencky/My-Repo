@@ -1,6 +1,0 @@
-[Log][main:156] Starting the MiniScheduler daemon process...
-[Log][main:157] Log file path: /mnt/e/Study/Linux/MiniScheduler/logs/minisched.log
-[Log][daemonize:360] Daemonizing the process...
-[Log][main:80] Receive: ENQUEUE JOB ID[1] DONE
-
-[Log][main:80] Receive: 

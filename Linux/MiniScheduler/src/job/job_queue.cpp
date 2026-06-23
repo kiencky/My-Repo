@@ -14,7 +14,7 @@
 int job_queue_init(job_queue_t *queue)
 {
     if( queue == NULL ) {
-        log_error("[%s:%d] Invalid argument\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] Invalid argument\n",__FILE__,__func__,__LINE__);
         return -1;
     }
 
@@ -22,12 +22,12 @@ int job_queue_init(job_queue_t *queue)
     memset(queue, 0, sizeof(*queue));
 
     if( pthread_mutex_init(&queue->mutex, NULL) != 0 ) {
-        log_error("[%s:%d] Failed to initialize mutex\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] Failed to initialize mutex\n",__FILE__,__func__,__LINE__);
         return -1;
     }
 
     if( pthread_cond_init(&queue->cond, NULL) != 0 ) {
-        log_error("[%s:%d] Failed to initialize condition variable\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] Failed to initialize condition variable\n",__FILE__,__func__,__LINE__);
         pthread_mutex_destroy(&queue->mutex);
         return -1;
     }
@@ -51,12 +51,12 @@ int job_queue_is_empty(const job_queue_t *queue)
 int job_queue_push(job_queue_t *queue, const job_t *job)
 {
     if( queue == NULL || job == NULL ) {
-        log_error("[%s:%d] Invalid argument\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] Invalid argument\n",__FILE__,__func__,__LINE__);
         return -1;
     }
 
     if( job_queue_is_full(queue) ) {
-        log_error("[%s:%d] Job queue is full\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] Job queue is full\n",__FILE__,__func__,__LINE__);
         return -1;
     }
 
@@ -70,12 +70,12 @@ int job_queue_push(job_queue_t *queue, const job_t *job)
 int job_queue_pop(job_queue_t *queue, job_t *job)
 {
     if( queue == NULL || job == NULL ) {
-        log_error("[%s:%d] Invalid argument\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] Invalid argument\n",__FILE__,__func__,__LINE__);
         return -1;
     }
 
     if( job_queue_is_empty(queue) ) {
-        log_error("[%s:%d] Job queue is empty\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] Job queue is empty\n",__FILE__,__func__,__LINE__);
         return -1;
     }
 

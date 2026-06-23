@@ -22,6 +22,9 @@
 #include "../../include/config/config_loader.h"
 #include "../../include/job/job.h"
 
+
+extern char g_log_path[1024];    // Global variable to hold the log path, defined in unix_socket.cpp
+
 // volatile is used to prevent compiler optimizations so that main process can access the variable stored in memory instead of register cache.
 // sig_atomic_t is used to ensure that the variable is accessed atomically, which is important for signal handlers to avoid race conditions.
 static volatile sig_atomic_t g_running = 1;     // Flag to control the main loop.
@@ -59,7 +62,7 @@ static job_t* find_job_in_history_jobs(size_t job_id)
 /// @note
 static void* worker_main(void* arg)
 {
-    log_out("[%s:%d] Starting worker thread...\n", __func__, __LINE__);
+    log_out("[%s][%s:%d] Starting worker thread...\n", __FILE__,__func__,__LINE__);
 
     // Silence the unused parameter warning.
     (void)arg;
@@ -70,13 +73,13 @@ static void* worker_main(void* arg)
 
         // Wait until there is a job in the queue or the scheduler is shutting down.
         while( job_queue_is_empty(&g_scheduler.queue) && !g_scheduler.shutting_down ) {
-            log_out("[%s:%d] Worker thread is waiting for jobs...\n", __func__, __LINE__);
+            log_out("[%s][%s:%d] Worker thread is waiting for jobs...\n", __FILE__,__func__,__LINE__);
             pthread_cond_wait(&g_scheduler.queue.cond, &g_scheduler.queue.mutex);
         }
 
         // If the queue is empty and the scheduler is shutting down, break the loop to allow the thread to exit.
         if( job_queue_is_empty(&g_scheduler.queue) && g_scheduler.shutting_down ) {
-            log_out("[%s:%d] Worker thread exits.\n", __func__, __LINE__);
+            log_out("[%s][%s:%d] Worker thread exits.\n", __FILE__,__func__,__LINE__);
             pthread_mutex_unlock(&g_scheduler.queue.mutex);
             break;
         }
@@ -85,44 +88,69 @@ static void* worker_main(void* arg)
 
         // Pop a job from the queue. If it fails, unlock the mutex and continue to the next iteration.
         if( job_queue_pop(&g_scheduler.queue, &current_job) == -1 ) {
-            log_error("[%s:%d] Failed to pop job from queue\n", __func__, __LINE__);
+            log_error("[%s][%s:%d] Failed to pop job from queue\n", __FILE__,__func__,__LINE__);
             pthread_mutex_unlock(&g_scheduler.queue.mutex);
             continue;
         }
 
         current_job.state = JOB_RUNNING;
-        current_job.started_time = time(NULL);
+        get_local_time_string(current_job.started_time, sizeof(current_job.started_time), time(NULL), LOCAL_TIME_FORMAT_STRING);
         current_job.pid = getpid();
 
         job_t *history_job = find_job_in_history_jobs(current_job.id);
         if( history_job != NULL ) {
             history_job->state = current_job.state;
-            history_job->started_time = current_job.started_time;
+            strncpy(history_job->started_time, current_job.started_time, sizeof(history_job->started_time) - 1);
             history_job->pid = current_job.pid;
         }
 
         pthread_mutex_unlock(&g_scheduler.queue.mutex);
 
         // Execute the job command using system().
-        log_out("[%s:%d] Executing job ID[%d]: %s\n", __func__, __LINE__, current_job.id, current_job.command);
-        int return_code = system(current_job.command);
+        // Redirect the output to a command log file.
+        char sys_cmd[MINISCHED_MAX_CMD_SIZE+MINISCHED_MAX_STRING_SIZE] = {0};
+        char cmd_log_path[1024] = {0};
+        int log_flag = 0;
+        if(g_log_path[0] != '\0') {
+            // Insert "_cmd" after the filename.
+            const char *last_dot = strrchr(g_log_path, '.');
+            if( last_dot != NULL ) {
+                log_flag = 1;
+                int dir_len = last_dot - g_log_path;  // not include the '.'.
+                snprintf(cmd_log_path, sizeof(cmd_log_path), "%.*s_cmd%s", dir_len, g_log_path, last_dot);
+            }
+
+            int fd = open(cmd_log_path, O_WRONLY | O_CREAT | O_APPEND, 0644);
+            if( fd >= 0 ) {
+                log_flag = 1;
+                dprintf(fd, "\nExecuting job ID[%d]: %s\n", current_job.id, current_job.command);
+                snprintf(sys_cmd, sizeof(sys_cmd), "%s >> %s 2>&1", current_job.command, cmd_log_path);
+                close(fd);
+            }
+        }
+        
+        if(!log_flag) {
+            snprintf(sys_cmd, sizeof(sys_cmd), "%s", current_job.command);
+        }
+
+        int return_code = system(sys_cmd);
 
         pthread_mutex_lock(&g_scheduler.queue.mutex);
 
         current_job.exit_code = return_code;
         current_job.state = (return_code == 0) ? JOB_COMPLETED : JOB_FAILED;
-        current_job.finished_time = time(NULL);
+        get_local_time_string(current_job.finished_time, sizeof(current_job.finished_time), time(NULL), LOCAL_TIME_FORMAT_STRING);
 
         if( history_job != NULL ) {
             history_job->state = current_job.state;
             history_job->exit_code = current_job.exit_code;
-            history_job->finished_time = current_job.finished_time;
+            strncpy(history_job->finished_time, current_job.finished_time, sizeof(history_job->finished_time) - 1);
         }
 
         pthread_mutex_unlock(&g_scheduler.queue.mutex);
     }
 
-    log_out("[%s:%d] Exiting worker thread...\n", __func__, __LINE__);
+    log_out("[%s][%s:%d] Exiting worker thread...\n", __FILE__,__func__,__LINE__);
     return NULL;
 }
 
@@ -131,7 +159,7 @@ static void* worker_main(void* arg)
 //
 static void handle_signal(int signo) {
     if( signo == SIGINT || signo == SIGTERM ) {
-        log_out("[%s:%d] Temination signal received, shutting down the daemon...\n", __func__, __LINE__);
+        log_out("[%s][%s:%d] Temination signal received, shutting down the daemon...\n", __FILE__,__func__,__LINE__);
         g_running = 0;
     }
 }
@@ -139,14 +167,13 @@ static void handle_signal(int signo) {
 // Daemon main function.
 int main()
 {
-    // Load config data before daemonize().
-    minisched_config_t config;
-    config_load(MINISCHED_CONFIG_FILEPATH, &config);
+    printf("[%s][%s:%d] MiniScheduler daemon starting...\n", __FILE__,__func__,__LINE__);
+    MainDaemon *c_MainDaemon = MainDaemon::newInstance();
 
     // Get the absolute log path.
     char log_path[1024] = {0};
-    if( log_path_init(log_path, sizeof(log_path)) != 0 ) {
-        printf("[%s:%d] Failed to initialize log path\n",__func__,__LINE__);
+    if( log_path_init() != 0 ) {
+        printf("[%s][%s:%d] Failed to initialize log path\n",__FILE__,__func__,__LINE__);
         return 1;
     }
     
@@ -154,14 +181,16 @@ int main()
     int log_fd = open(log_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if( log_fd >= 0 ) close(log_fd);
 
-    log_out("[%s:%d] Starting the MiniScheduler daemon process...\n", __func__, __LINE__);
-    log_out("[%s:%d] Log file path: %s\n", __func__, __LINE__, log_path);
+    // Load config data before daemonize().
+    log_out("[%s][%s:%d] Loading config file.\n", __FILE__,__func__,__LINE__);
+    minisched_config_t config;
+    config_load(MINISCHED_CONFIG_FILEPATH, &config);
 
-    MainDaemon *c_MainDaemon = MainDaemon::newInstance();
-
+    
     // Daemonize the process to run in the background.
+    log_out("[%s][%s:%d] Starting the MiniScheduler daemon process...\n", __FILE__,__func__,__LINE__);
     if( MainDaemon::daemonize(MINISCHED_PID_FILEPATH) != 0 ) {
-        log_error("[%s:%d] Daemonize failed.\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] Daemonize failed.\n",__FILE__,__func__,__LINE__);
         return 1;
     }
 
@@ -174,43 +203,49 @@ int main()
     g_scheduler.next_job_id = 1;
 
     // Initialize the job queue.
+    log_out("[%s][%s:%d] Initializing job queue...\n", __FILE__,__func__,__LINE__);
     if( job_queue_init(&g_scheduler.queue) != 0 ) {
-        log_error("[%s:%d] Failed to initialize job queue\n", __func__, __LINE__);
+        log_error("[%s][%s:%d] Failed to initialize job queue\n", __FILE__,__func__,__LINE__);
         return 1;
     }
 
     // Create and start the worker thread.
+    log_out("[%s][%s:%d] Creating worker thread...\n", __FILE__,__func__,__LINE__);
     if( pthread_create(&g_scheduler.worker_thread, NULL, worker_main, NULL) != 0 ) {
-        log_error("[%s:%d] Failed to create worker thread\n", __func__, __LINE__);
+        log_error("[%s][%s:%d] Failed to create worker thread\n", __FILE__,__func__,__LINE__);
         return 1;
     }
 
     // Create and start listening on the Unix domain socket.
+    log_out("[%s][%s:%d] Starting IPC server on socket: %s\n", __FILE__,__func__,__LINE__, config.socket_path);
     int server_fd = c_MainDaemon->ipc_server_listen(config.socket_path);
     if( server_fd < 0 ) {
-        log_error("[%s:%d] Failed to start IPC server\n", __func__, __LINE__);
+        log_error("[%s][%s:%d] Failed to start IPC server\n", __FILE__,__func__,__LINE__);
         return 1;   // If listening failed, exit here.
     }
 
     // Main server loop to connect, handle one client at a time.
     while(g_running) {
+
         // Block until connect to a client.
+        log_out("[%s][%s:%d] Waiting for client connection...\n", __FILE__,__func__,__LINE__);
         int client_fd = c_MainDaemon->ipc_server_accept(server_fd);
         if(client_fd < 0) {
-            log_error("[%s:%d] Failed to accept client connection\n", __func__, __LINE__);
+            log_error("[%s][%s:%d] Failed to accept client connection\n", __FILE__,__func__,__LINE__);
             continue;   // Skip to next iteration and try to accept again.
         }
 
         char c_buffer[MINISCHED_MAX_CMD_SIZE] = {0};
         
         // Read a single line from the client.
+        log_out("[%s][%s:%d] Receiving command from client...\n", __FILE__,__func__,__LINE__);
         int i_bytes = c_MainDaemon->ipc_recv_line(client_fd, c_buffer, sizeof(c_buffer));
 
         char resp[MINISCHED_MAX_STRING_SIZE] = {0};
 
         if(i_bytes > 0) {
             if( strncmp(c_buffer, "ADD", 3) == 0 ) {
-            log_out("[%s:%d] Handling ADD command...\n", __func__, __LINE__);
+            log_out("[%s][%s:%d] Handling ADD command...\n", __FILE__,__func__,__LINE__);
             // Handle the "ADD" command.
                 char *command = c_buffer + 3;
                 while( *command == ' ') {
@@ -231,27 +266,27 @@ int main()
                     pthread_mutex_lock(&g_scheduler.queue.mutex);
 
                     if( job_queue_is_full(&g_scheduler.queue) ) {
-                        log_error("[%s:%d] Job queue is full\n", __func__, __LINE__);
+                        log_error("[%s][%s:%d] Job queue is full\n", __FILE__,__func__,__LINE__);
                         strncpy(resp, "ERR QUEUE IS FULL\n", sizeof(resp) - 1);
                     } else if( g_scheduler.history_jobs_size >= MINISCHED_MAX_JOBS ) {
-                        log_error("[%s:%d] History job table is full\n", __func__, __LINE__);
+                        log_error("[%s][%s:%d] History job table is full\n", __FILE__,__func__,__LINE__);
                         strncpy(resp, "ERR JOB TABLE IS FULL\n", sizeof(resp) - 1);
                     } else {
                         job_t job = {};
                         job.id = g_scheduler.next_job_id++;
                         strncpy(job.command, command, sizeof(job.command) - 1);
                         job.state = JOB_PENDING;
-                        job.created_time = time(NULL);
+                        get_local_time_string(job.created_time, sizeof(job.created_time), time(NULL), LOCAL_TIME_FORMAT_STRING);
 
                         if( job_queue_push(&g_scheduler.queue, &job) == 0 ) {
-                            log_out("[%s:%d] Enqueued done job ID[%d]: %s\n", __func__, __LINE__, job.id, job.command);
+                            log_out("[%s][%s:%d] Enqueued done job ID[%d]: %s\n", __FILE__,__func__,__LINE__, job.id, job.command);
                             g_scheduler.history_jobs[g_scheduler.history_jobs_size++] = job;
                             
                             pthread_cond_signal(&g_scheduler.queue.cond);          // Signal the worker thread that a new job is available.
                             
                             snprintf(resp, sizeof(resp), "ENQUEUE JOB ID[%d] DONE\n", job.id);
                         } else {
-                            log_error("[%s:%d] Failed to enqueue job\n", __func__, __LINE__);
+                            log_error("[%s][%s:%d] Failed to enqueue job\n", __FILE__,__func__,__LINE__);
                             strncpy(resp, "ENQUEUE JOB FAILED\n", sizeof(resp) - 1);
                         }
                     }
@@ -260,31 +295,31 @@ int main()
                 }
             } else if( strncmp(c_buffer, "STATUS", 6) == 0 ) {
             // Handle the "STATUS" command to return the status of all jobs in the history.
-                log_out("[%s:%d] Handling STATUS command...\n", __func__, __LINE__);
+                log_out("[%s][%s:%d] Handling STATUS command...\n", __FILE__,__func__,__LINE__);
                 pthread_mutex_lock(&g_scheduler.queue.mutex);
 
                 if( g_scheduler.history_jobs_size == 0 ) {
-                    log_error("[%s:%d] No jobs in history\n", __func__, __LINE__);
+                    log_error("[%s][%s:%d] No jobs in history\n", __FILE__,__func__,__LINE__);
                     strncpy(resp, "ERR JOB TABLE IS EMPTY\n", sizeof(resp) - 1);
                 } else {
                     int offset = snprintf(resp, sizeof(resp), "TOTAL = %d\r\n", g_scheduler.history_jobs_size);
                     if( offset > 0 ) {
                         offset += snprintf( resp + offset,
                                     sizeof(resp) - offset,
-                                    "ID  PID   STATE    CREATED TIME      STARTED TIME      FINISHED TIME  	  COMMAND\r\n" );
+                                    "ID  PID     STATE           CREATED TIME            STARTED TIME            FINISHED TIME           COMMAND\r\n" );
                     }
 
                     for( size_t job_index = 0; (job_index < g_scheduler.history_jobs_size) && (offset > 0) && (offset < int(sizeof(resp) - 1)); job_index++) {
                         job_t job = g_scheduler.history_jobs[job_index];
                         int n = snprintf( resp + offset,
                                     sizeof(resp) - offset,
-                                    "%-4d %-6d %-9s %-18lld %-18lld %-18lld %s\r\n",
+                                    "%-4d%-8d%-16s%-24s%-24s%-24s%s\r\n",
                                     job.id,
                                     job.pid,
-                                    job.state,
-                                    (long long)job.created_time,
-                                    (long long)job.started_time,
-                                    (long long)job.finished_time,
+                                    job_state_to_string(job.state),
+                                    job.created_time,
+                                    job.started_time,
+                                    job.finished_time,
                                     job.command );
                         
                         // If there is an error or no more space to write, break the loop.
@@ -307,13 +342,14 @@ int main()
                 pthread_mutex_unlock(&g_scheduler.queue.mutex);
             } else {
             // If the command is invalid, send an "UNKNOWN_CMD" response.
-                log_error("[%s:%d] UNKNOWN COMMAND: %s\n", __func__, __LINE__, c_buffer);
+                log_error("[%s][%s:%d] UNKNOWN COMMAND: %s\n", __FILE__,__func__,__LINE__, c_buffer);
                 strncpy(resp, "UNKNOWN_CMD\n", sizeof(resp) - 1);
             }
 
             resp[sizeof(resp) - 1] = '\0';
 
             // Send the response back to the client.
+            log_out("[%s][%s:%d] Sending response to client.\n", __FILE__,__func__,__LINE__);
             c_MainDaemon->ipc_send_all(client_fd, resp, strlen(resp));
         }
 
@@ -322,6 +358,7 @@ int main()
     }
 
 // Gracefully shutdown the worker thread and clean up resources.
+    log_out("[%s][%s:%d] Gracefully shutting down ...\n", __FILE__,__func__,__LINE__);
     pthread_mutex_lock(&g_scheduler.queue.mutex);
 
     g_scheduler.shutting_down = 1;
@@ -333,11 +370,11 @@ int main()
     pthread_cond_destroy(&g_scheduler.queue.cond);
     pthread_mutex_destroy(&g_scheduler.queue.mutex);
 
-// Clean up the PID file, socket file and close the server socket before exiting the daemon.
+    // Clean up the PID file, socket file and close the server socket.
     MainDaemon::remove_pid_file(MINISCHED_PID_FILEPATH);
     unlink(config.socket_path);
     close(server_fd);
     
-    log_out("[%s:%d] MiniScheduler daemon exited.\n", __func__, __LINE__);
+    log_out("[%s][%s:%d] MiniScheduler daemon exited.\n", __FILE__,__func__,__LINE__);
     return 0;
 }

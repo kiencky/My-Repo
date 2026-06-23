@@ -27,8 +27,7 @@ typedef struct {
     size_t initialized;
 } shared_log_path_t;
 
-static char g_log_path[1024] = {0};    // Global variable to hold the log path.
-
+char g_log_path[1024] = {0};    // Global variable to hold the log path.
 
 //-------------------------------------------
 /// @brief  Print the usage instructions.
@@ -78,14 +77,14 @@ void log_error(const char *fmt,...)
         }
     }
 
-        // Write to log file.
+    // Write to log file.
     int fd = open(g_log_path, O_WRONLY | O_CREAT | O_APPEND, 0664);
 
     if( fd >= 0 ) {
         if( i_errno == 0 ) {
             dprintf(fd, "[Error]%s", msg);
         } else {
-            dprintf(fd, "[Error]%s: %s", msg, strerror(i_errno));
+            dprintf(fd, "[Error]%s: %s\n", msg, strerror(i_errno));
         }
         close(fd);
     }
@@ -137,28 +136,24 @@ void log_out(const char *fmt,...)
 /// @param log_path 
 /// @param max_length 
 /// @return 
-int log_path_init(char *log_path, size_t max_length)
+int log_path_init()
 {
-    if( log_path == NULL || max_length == 0 ) {
-        printf("[%s:%d] Invalid parameters\n",__func__,__LINE__);
-        return -1;
-    }
-
     // If the shared memory object already exists, remove it.
-    if( read_log_path_shm(log_path, max_length) == 0 ) {
+    if( read_log_path_shm(g_log_path, sizeof(g_log_path) - 1) == 0 ) {
         char rm_shm_cmd[512] = {0};
-        snprintf(rm_shm_cmd, sizeof(rm_shm_cmd), "rm -f/dev/shm%s", MINISCHED_LOGPATH_SHM_NAME);
+        snprintf(rm_shm_cmd, sizeof(rm_shm_cmd), "rm -f /dev/shm%s", MINISCHED_LOGPATH_SHM_NAME);
         system(rm_shm_cmd);
     }
 
-    memset(log_path, 0, max_length);
+    memset(g_log_path, 0, sizeof(g_log_path));
 
     // Get the absolute log path and write it to the shared memory.
-    if( get_absolute_log_path(log_path, max_length) != 0 ) {
-        printf("[%s:%d] Failed to get absolute log path\n",__func__,__LINE__);
+    if( get_absolute_log_path(g_log_path, sizeof(g_log_path) - 1) != 0 ) {
+        printf("[%s][%s:%d] Failed to get absolute log path\n",__FILE__,__func__,__LINE__);
         return -1;
     }
 
+    log_out("[%s][%s:%d] Log path initialized: %s\n", __FILE__,__func__,__LINE__, g_log_path);
     return 0;
 }
 
@@ -169,7 +164,7 @@ int log_path_init(char *log_path, size_t max_length)
 int get_absolute_log_path(char *log_path, size_t max_length)
 {
     if( log_path == NULL || max_length == 0 ) {
-        log_error("[%s:%d] Invalid parameters\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] Invalid parameters\n",__FILE__,__func__,__LINE__);
         return -1;
     }
 
@@ -183,28 +178,27 @@ int get_absolute_log_path(char *log_path, size_t max_length)
 
         if( getcwd(cwd, sizeof(cwd)) == NULL || strcmp(cwd, "/") == 0) {
         // If the current working directory is not available or is root, use the temporary log path.
-            log_error("[%s:%d] getcwd error or current working directory is root\n",__func__,__LINE__);
+            log_error("[%s][%s:%d] getcwd error or current working directory is root\n",__FILE__,__func__,__LINE__);
             strncpy(c_log_path, MINISCHED_TEMP_LOG_FILEPATH, sizeof(c_log_path) - 1);
             c_log_path[sizeof(c_log_path) - 1] = '\0';
         } else {
         // Create a new log path based on the current working directory.
-            snprintf(c_log_path, sizeof(c_log_path), MINISCHED_LOG_FILEPATH, cwd, (long long)(time(NULL)));
+            char current_time[32] = {0};
+            get_local_time_string(current_time, sizeof(current_time), time(NULL), LOCAL_TIME_FORMAT_INT);
+            snprintf(c_log_path, sizeof(c_log_path), MINISCHED_LOG_FILEPATH, cwd, current_time);
 
             // Write the new log path to the shared memory.
             if( write_log_path_shm(c_log_path) == -1 ) {
-                log_error("[%s:%d] write log path to shared memory failed\n",__func__,__LINE__);
+                log_error("[%s][%s:%d] write log path to shared memory failed\n",__FILE__,__func__,__LINE__);
                 return -1;
             }
         }
     }
 
     if( max_length < strlen(c_log_path) + 1 ) {
-        log_error("[%s:%d] log path buffer is too small\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] log path buffer is too small\n",__FILE__,__func__,__LINE__);
         return -1;
     }
-
-    strncpy(g_log_path, c_log_path, sizeof(g_log_path) - 1);
-    g_log_path[sizeof(g_log_path) - 1] = '\0';
 
     strncpy(log_path, c_log_path, max_length - 1);
     log_path[max_length-1] = '\0';
@@ -218,30 +212,33 @@ int get_absolute_log_path(char *log_path, size_t max_length)
 /// @note   
 int write_log_path_shm(const char* file_path)
 {
+    printf("[%s][%s:%d] Writing log path to shared memory: %s\n",__FILE__,__func__,__LINE__, file_path);
+
     if( file_path == NULL && file_path[0] == '\0') {
-        log_error("[%s:%d] Invalid file path\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] Invalid file path\n",__FILE__,__func__,__LINE__);
         return -1;
     }
 
     int fd = shm_open(MINISCHED_LOGPATH_SHM_NAME, O_CREAT | O_RDWR, 0666);
     if( fd < 0 ) {
-        log_error("[%s:%d] shm_open error\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] shm_open error\n",__FILE__,__func__,__LINE__);
         return -1;
     }
 
     if( ftruncate(fd, sizeof(shared_log_path_t)) < 0 ) {
-        log_error("[%s:%d] ftruncate error\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] ftruncate error\n",__FILE__,__func__,__LINE__);
         close(fd);
         return -1;
     }
 
+    // Map the shared memory object to the process's address space.
     shared_log_path_t *shared = (shared_log_path_t*)mmap(NULL, sizeof(shared_log_path_t),
                                  PROT_READ | PROT_WRITE,
                                  MAP_SHARED,
                                  fd, 0);
 
     if( shared == MAP_FAILED ) {
-        log_error("[%s:%d] mmap error\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] mmap error\n",__FILE__,__func__,__LINE__);
         close(fd);
         return -1;
     }
@@ -252,6 +249,8 @@ int write_log_path_shm(const char* file_path)
 
     munmap(shared, sizeof(shared_log_path_t));
     close(fd);
+
+    printf("[%s][%s:%d] Log path written to shared memory successfully.\n",__FILE__,__func__,__LINE__);
     return 0;
 }
 
@@ -262,8 +261,10 @@ int write_log_path_shm(const char* file_path)
 /// @note   
 int read_log_path_shm(char *log_path, size_t max_length)
 {
+    printf("[%s][%s:%d] Reading log path from shared memory...\n",__FILE__,__func__,__LINE__);
+
     if( log_path == NULL || max_length == 0 ) {
-        log_error("[%s:%d] Invalid parameters\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] Invalid parameters\n",__FILE__,__func__,__LINE__);
         return -1;
     }
 
@@ -273,29 +274,81 @@ int read_log_path_shm(char *log_path, size_t max_length)
         return -1;
     }
 
+    // Map the shared memory object to the process's address space.
     shared_log_path_t *shared = (shared_log_path_t*)mmap(NULL, sizeof(shared_log_path_t),
                                  PROT_READ,
                                  MAP_SHARED,
                                  fd, 0);
 
     if( shared == MAP_FAILED ) {
-        log_error("[%s:%d] mmap error\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] mmap error\n",__FILE__,__func__,__LINE__);
         close(fd);
         return -1;
     }
 
     if( shared->initialized == 0 || max_length < strlen(shared->log_path) + 1 || shared->log_path[0] == '\0') {
-        log_error("[%s:%d] Log path is not initialized or buffer is invalid\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] Log path is not initialized or buffer is invalid\n",__FILE__,__func__,__LINE__);
         munmap(shared, sizeof(shared_log_path_t));
         close(fd);
         return -1;
     }
     
-    strncpy(log_path, shared->log_path, sizeof(max_length) - 1);
+    strncpy(log_path, shared->log_path, max_length - 1);
+    log_path[max_length-1] = '\0';
 
     munmap(shared, sizeof(shared_log_path_t));
     close(fd);
 
+    printf("[%s][%s:%d] Log path read from shared memory: %s\n",__FILE__,__func__,__LINE__, log_path);
+    return 0;
+}
+
+/// @brief  Get the local time string based on the specified format.
+/// @param  t
+/// @param  format
+/// @param  buffer
+/// @param  buffer_size
+/// @return
+/// @note   
+int get_local_time_string(char *buffer, size_t buffer_size, time_t t, LOCAL_TIME_FORMAT format)
+{
+    if( buffer == NULL || buffer_size == 0 ) {
+        log_error("[%s][%s:%d] Invalid parameters\n",__FILE__,__func__,__LINE__);
+        return -1;
+    }
+
+    struct tm *local_time = localtime(&t);
+    if( local_time == NULL ) {
+        log_error("[%s][%s:%d] localtime error\n",__FILE__,__func__,__LINE__);
+        return -1;
+    }
+
+    switch(format) {
+        case LOCAL_TIME_FORMAT_INT:
+            snprintf(buffer, buffer_size, "%04d%02d%02d%02d%02d%02d",
+                     local_time->tm_year + 1900,
+                     local_time->tm_mon + 1,
+                     local_time->tm_mday,
+                     local_time->tm_hour,
+                     local_time->tm_min,
+                     local_time->tm_sec);
+            break;
+        case LOCAL_TIME_FORMAT_STRING:
+            snprintf(buffer, buffer_size, "%04d-%02d-%02d %02d:%02d:%02d",
+                     local_time->tm_year + 1900,
+                     local_time->tm_mon + 1,
+                     local_time->tm_mday,
+                     local_time->tm_hour,
+                     local_time->tm_min,
+                     local_time->tm_sec);
+            break;
+        default:
+            log_error("[%s][%s:%d] Unknown time format: %d\n",__FILE__,__func__,__LINE__, format);
+            snprintf(buffer, buffer_size, "UNKNOWN TIME FORMAT");
+            break;
+    }
+
+    buffer[buffer_size - 1] = '\0';  // Ensure null-termination.
     return 0;
 }
 
@@ -319,7 +372,7 @@ int UnixSocket::ipc_send_all(int fd, const char *buffer, size_t length)
     while( total_sent < length ) {
         int sent = write(fd, buffer + total_sent, length - total_sent);
         if( sent < 0 ) {
-            log_error("[%s:%d] write error\n",__func__,__LINE__);
+            log_error("[%s][%s:%d] write error\n",__FILE__,__func__,__LINE__);
             return -1;
         }
 
@@ -343,7 +396,7 @@ int UnixSocket::ipc_recv_line(int fd, char *buffer, size_t max_length)
         int bytes_read = read(fd, &data, 1);
         
         if( bytes_read == -1 ) {
-            log_error("[%s:%d] read error\n",__func__,__LINE__);
+            log_error("[%s][%s:%d] read error\n",__FILE__,__func__,__LINE__);
             return -1;
         } else if( bytes_read == 0 ) {
             // EOF reached, break the loop.
@@ -372,7 +425,7 @@ int MainDaemon::ipc_server_listen(const char *socket_path)
     // AF_UNIX specifies Unix domain sockets, SOCK_STREAM indicates a stream-oriented socket (like TCP), 0 to use the default protocol.
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd == -1) {
-        log_error("[%s:%d] create socket error\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] create socket error\n",__FILE__,__func__,__LINE__);
         return -1;
     }
 
@@ -385,14 +438,14 @@ int MainDaemon::ipc_server_listen(const char *socket_path)
 
     // Bind the socket to the specified path.
     if( bind(fd, (struct sockaddr*)&addr, sizeof(addr)) == -1 ) {
-        log_error("[%s:%d] bind error\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] bind error\n",__FILE__,__func__,__LINE__);
         close(fd);
         return -1;
     }
 
     // Listen for incoming connections. The maximum number of pending connections is 5.
     if( listen(fd, 5) == -1 ) {
-        log_error("[%s:%d] listen error\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] listen error\n",__FILE__,__func__,__LINE__);
         close(fd);
         return -1;
     }
@@ -409,7 +462,7 @@ int MainDaemon::ipc_server_accept(int server_fd)
     // Accept a new client connection. The function blocks until a client connects.
     int client_fd = accept(server_fd, NULL, NULL);
     if( client_fd == -1 ) {
-        log_error("[%s:%d] accept error\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] accept error\n",__FILE__,__func__,__LINE__);
         return -1;
     }
 
@@ -444,7 +497,7 @@ pid_t MainDaemon::read_pid_file(const char *file_path)
             // No such file or directory.
             return 0;
         }
-        log_error("[%s:%d] fopen error\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] fopen error\n",__FILE__,__func__,__LINE__);
         return -1;
     }
 
@@ -452,7 +505,7 @@ pid_t MainDaemon::read_pid_file(const char *file_path)
 
     if( fscanf(fp, "%d", &pid) != 1 ) {
         // Empty file or wrong format.
-        log_error("[%s:%d] Empty or wrong format file.\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] Empty or wrong format file.\n",__FILE__,__func__,__LINE__);
         fclose(fp);
         return 0;
     }
@@ -469,14 +522,14 @@ int MainDaemon::write_pid_file(const char *file_path)
     FILE *fp = fopen(file_path, "w");
 
     if(!fp) {
-        log_error("[%s:%d] fopen error\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] fopen error\n",__FILE__,__func__,__LINE__);
         return -1;
     }
 
     pid_t pid = getpid();
 
     if( fprintf(fp, "%d", pid) < 0 ) {
-        log_error("[%s:%d] Write the PID failed.\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] Write the PID failed.\n",__FILE__,__func__,__LINE__);
         fclose(fp);
         return -1;
     }
@@ -494,7 +547,7 @@ int MainDaemon::remove_pid_file(const char *file_path)
         if( errno == ENOENT ) {
             return 0;
         }
-        log_error("[%s:%d] remove pid file failed\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] remove pid file failed\n",__FILE__,__func__,__LINE__);
         return -1;
     }
 
@@ -508,7 +561,7 @@ int MainDaemon::is_daemon_existing(const char *file_path)
 {
     pid_t pid = read_pid_file(file_path);
     if( pid < 0 ) {
-        log_error("[%s:%d] read pid file failed\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] read pid file failed\n",__FILE__,__func__,__LINE__);
         return -1;
     } else if ( pid == 0) {
         // The pid file is empty, no daemon is running.
@@ -517,7 +570,7 @@ int MainDaemon::is_daemon_existing(const char *file_path)
 
     // This process is still running.
     if( is_process_existing(pid) == 1 ) {
-        log_out("[%s:%d] This process already exists\n",__func__, __LINE__);
+        log_out("[%s][%s:%d] This process already exists\n",__FILE__,__func__,__LINE__);
         return -1;
     }
 
@@ -533,15 +586,15 @@ int MainDaemon::is_daemon_existing(const char *file_path)
 int MainDaemon::daemonize(const char *file_path)
 {
     if( is_daemon_existing(file_path) != 0 ) {
-        log_error("[%s:%d] Daemon already exists or error occurred\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] Daemon already exists or error occurred\n",__FILE__,__func__,__LINE__);
         return -1;
     }
 
-    log_out("[%s:%d] Daemonizing the process...\n", __func__, __LINE__);
+    log_out("[%s][%s:%d] Daemonizing the process...\n", __FILE__,__func__,__LINE__);
     pid_t pid = fork();
 
     if( pid < 0 ) {
-        log_error("[%s:%d] fork error\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] fork error\n",__FILE__,__func__,__LINE__);
         return -1;
     }
 
@@ -552,13 +605,13 @@ int MainDaemon::daemonize(const char *file_path)
 // The child process.
     // Detach child process from TTY(Controllign terminal).
     if( setsid() < 0 ) {
-        log_error("[%s:%d] setsid error\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] setsid error\n",__FILE__,__func__,__LINE__);
         return -1;
     }
 
     // Change the current working directory to root to avoid blocking unmounting of filesystems.
     if( chdir("/") < 0 ) {
-        log_error("[%s:%d] chdir error\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] chdir error\n",__FILE__,__func__,__LINE__);
         return -1;
     }
 
@@ -569,7 +622,7 @@ int MainDaemon::daemonize(const char *file_path)
     int fd_in = open("/dev/null", O_RDONLY);
     // dup2(oldfd, newfd) to make STDIN_FILENO(0) point to fd_in.
     if( fd_in < 0 || dup2(fd_in, STDIN_FILENO) < 0 ) {
-        log_error("[%s:%d] error with stdin\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] error with stdin\n",__FILE__,__func__,__LINE__);
         return -1;
     }
     if( fd_in > STDERR_FILENO ) close(fd_in);
@@ -578,7 +631,7 @@ int MainDaemon::daemonize(const char *file_path)
     int fd_out = open("/dev/null", O_WRONLY);
     // dup2(oldfd, newfd) to make STDOUT_FILENO(1) and STDERR_FILENO(2) point to fd_out.
     if( fd_out < 0 || dup2(fd_out, STDOUT_FILENO) < 0 || dup2(fd_out, STDERR_FILENO) < 0 ) {
-        log_error("[%s:%d] error with stdout or stderr\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] error with stdout or stderr\n",__FILE__,__func__,__LINE__);
         return -1;
     }
     if( fd_out > STDERR_FILENO ) close(fd_out);
@@ -609,7 +662,7 @@ int MainClient::ipc_client_connect(const char *socket_path)
     // AF_UNIX specifies Unix domain sockets, SOCK_STREAM indicates a stream-oriented socket (like TCP), 0 to use the default protocol.
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if( fd == -1 ) {
-        log_error("[%s:%d] create socket error\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] create socket error\n",__FILE__,__func__,__LINE__);
         return -1;
     }
 
@@ -620,7 +673,7 @@ int MainClient::ipc_client_connect(const char *socket_path)
 
     // Connect to the server socket at the specified path.
     if( connect(fd, (struct sockaddr*) &addr, sizeof(addr)) == -1 ) {
-        log_error("[%s:%d] connect error\n",__func__,__LINE__);
+        log_error("[%s][%s:%d] connect error\n",__FILE__,__func__,__LINE__);
         close(fd);
         return -1;
     }

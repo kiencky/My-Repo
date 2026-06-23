@@ -25,12 +25,12 @@ all: minisched_daemon minisched_client
 # <TAB> compiler flags -o target_executable source_files(input file)
 
 # For Daemon executable
-DAEMON_SRCS = $(IPC_SRCS) $(CONFIG_SRCS) $(JOB_SRCS) apps/daemon/main.cpp
+DAEMON_SRCS = $(IPC_SRCS) $(CONFIG_SRCS) $(JOB_SRCS) apps/daemon/main_daemon.cpp
 minisched_daemon: $(DAEMON_SRCS) $(ALL_INCS)
 	$(CC) $(CFLAGS) $(PTHREAD) -o minisched_daemon $(DAEMON_SRCS)
 
 # For Client executable
-CLIENT_SRCS = $(IPC_SRCS) $(CONFIG_SRCS) apps/client/main.cpp
+CLIENT_SRCS = $(IPC_SRCS) $(CONFIG_SRCS) apps/client/main_client.cpp
 minisched_client: $(CLIENT_SRCS) $(ALL_INCS)
 	$(CC) $(CFLAGS) $(PTHREAD) -o minisched_client $(CLIENT_SRCS)
 
