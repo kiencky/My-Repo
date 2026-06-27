@@ -139,11 +139,7 @@ void log_out(const char *fmt,...)
 int log_path_init()
 {
     // If the shared memory object already exists, remove it.
-    if( read_log_path_shm(g_log_path, sizeof(g_log_path) - 1) == 0 ) {
-        char rm_shm_cmd[512] = {0};
-        snprintf(rm_shm_cmd, sizeof(rm_shm_cmd), "rm -f /dev/shm%s", MINISCHED_LOGPATH_SHM_NAME);
-        system(rm_shm_cmd);
-    }
+    shm_unlink(MINISCHED_LOGPATH_SHM_NAME);
 
     memset(g_log_path, 0, sizeof(g_log_path));
 

@@ -18,6 +18,8 @@
 #define MINISCHED_LOG_FILEPATH          "%s/logs/minisched_%s.log"
 #define MINISCHED_TEMP_LOG_FILEPATH     "/tmp/minisched.log"
 #define MINISCHED_LOGPATH_SHM_NAME      "/minisched_log_path_shm"
+#define MINISCHED_JOBQUEUE_SHM_NAME     "/minisched_job_queue_shm"
+#define MINISCHED_MAX_WORKERS           8
 
 typedef char LOCAL_TIME_FORMAT;
     static const char LOCAL_TIME_FORMAT_INT         = 1;  // Format local time as an integer (e.g., 20240101123045).

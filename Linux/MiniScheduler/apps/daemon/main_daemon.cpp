@@ -3,11 +3,13 @@
 // Note: Main daemon process for the MiniScheduler project.
 //       Running in background, initialize the IPC(Unix domain socket).
 // Flow: Create socket -> Listen client -> Connect(accept) client -> Read from client -> Close socket
+//       Milestone 4: Shared memory + multi-process workers (fork-based).
 //==================================================================================================================
 
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <signal.h>
@@ -29,17 +31,8 @@ extern char g_log_path[1024];    // Global variable to hold the log path, define
 // sig_atomic_t is used to ensure that the variable is accessed atomically, which is important for signal handlers to avoid race conditions.
 static volatile sig_atomic_t g_running = 1;     // Flag to control the main loop.
 
-// Struct to save the scheduler information.
-typedef struct {
-    job_queue_t queue;
-    pthread_t worker_thread;
-    size_t next_job_id;
-    job_t history_jobs[MINISCHED_MAX_JOBS];
-    size_t history_jobs_size;
-    int shutting_down;          // Flag to indicate if the scheduler is shutting down.
-} scheduler_t;
-
-static scheduler_t g_scheduler;     // Global scheduler instance.
+// Global pointer to the shared memory scheduler (accessible by daemon and workers after fork).
+static shared_scheduler_t *g_scheduler = NULL;
 
 /// @brief  Find a job in the history jobs array by its ID.
 /// @param  job_id 
@@ -47,52 +40,49 @@ static scheduler_t g_scheduler;     // Global scheduler instance.
 /// @note
 static job_t* find_job_in_history_jobs(size_t job_id)
 {
-    for( size_t i = 0; i < g_scheduler.history_jobs_size; i++ ) {
-        if(g_scheduler.history_jobs[i].id == job_id) {
-            return &g_scheduler.history_jobs[i];
+    for( size_t i = 0; i < g_scheduler->history_jobs_size; i++ ) {
+        if(g_scheduler->history_jobs[i].id == job_id) {
+            return &g_scheduler->history_jobs[i];
         }
     }
 
     return NULL;
 }
 
-/// @brief  Worker thread main function to execute jobs from the job queue.
-/// @param  
-/// @return 
-/// @note
-static void* worker_main(void* arg)
+/// @brief  Worker process main function. Each forked child runs this loop.
+/// @note   Pops jobs from the shared memory queue and executes them.
+static void worker_process_main()
 {
-    log_out("[%s][%s:%d] Starting worker thread...\n", __FILE__,__func__,__LINE__);
+    log_out("[%s][%s:%d] Worker process [PID=%d] started.\n", __FILE__,__func__,__LINE__, getpid());
 
-    // Silence the unused parameter warning.
-    (void)arg;
-
-    // Worker thread main loop to execute jobs from the job queue.
     while(1) {
-        pthread_mutex_lock(&g_scheduler.queue.mutex);
+        pthread_mutex_lock(&g_scheduler->queue.mutex);
 
-        // Wait until there is a job in the queue or the scheduler is shutting down.
-        while( job_queue_is_empty(&g_scheduler.queue) && !g_scheduler.shutting_down ) {
-            log_out("[%s][%s:%d] Worker thread is waiting for jobs...\n", __FILE__,__func__,__LINE__);
-            pthread_cond_wait(&g_scheduler.queue.cond, &g_scheduler.queue.mutex);
+        // If mutex owner died, make it consistent (robust mutex).
+        // pthread_mutex_consistent is needed when using PTHREAD_MUTEX_ROBUST.
+
+        // Wait until there is a job in the queue or shutdown is requested.
+        while( job_queue_is_empty(&g_scheduler->queue) && !g_scheduler->queue.shutting_down ) {
+            pthread_cond_wait(&g_scheduler->queue.cond, &g_scheduler->queue.mutex);
         }
 
-        // If the queue is empty and the scheduler is shutting down, break the loop to allow the thread to exit.
-        if( job_queue_is_empty(&g_scheduler.queue) && g_scheduler.shutting_down ) {
-            log_out("[%s][%s:%d] Worker thread exits.\n", __FILE__,__func__,__LINE__);
-            pthread_mutex_unlock(&g_scheduler.queue.mutex);
+        // If the queue is empty and shutting down, exit the loop.
+        if( job_queue_is_empty(&g_scheduler->queue) && g_scheduler->queue.shutting_down ) {
+            log_out("[%s][%s:%d] Worker [PID=%d] shutting down.\n", __FILE__,__func__,__LINE__, getpid());
+            pthread_mutex_unlock(&g_scheduler->queue.mutex);
             break;
         }
 
         job_t current_job;
 
-        // Pop a job from the queue. If it fails, unlock the mutex and continue to the next iteration.
-        if( job_queue_pop(&g_scheduler.queue, &current_job) == -1 ) {
-            log_error("[%s][%s:%d] Failed to pop job from queue\n", __FILE__,__func__,__LINE__);
-            pthread_mutex_unlock(&g_scheduler.queue.mutex);
+        // Pop a job from the queue.
+        if( job_queue_pop(&g_scheduler->queue, &current_job) == -1 ) {
+            log_error("[%s][%s:%d] Worker [PID=%d] failed to pop job\n", __FILE__,__func__,__LINE__, getpid());
+            pthread_mutex_unlock(&g_scheduler->queue.mutex);
             continue;
         }
 
+        // Update job state in shared memory.
         current_job.state = JOB_RUNNING;
         get_local_time_string(current_job.started_time, sizeof(current_job.started_time), time(NULL), LOCAL_TIME_FORMAT_STRING);
         current_job.pid = getpid();
@@ -104,7 +94,7 @@ static void* worker_main(void* arg)
             history_job->pid = current_job.pid;
         }
 
-        pthread_mutex_unlock(&g_scheduler.queue.mutex);
+        pthread_mutex_unlock(&g_scheduler->queue.mutex);
 
         // Execute the job command using system().
         // Redirect the output to a command log file.
@@ -112,10 +102,9 @@ static void* worker_main(void* arg)
         char cmd_log_path[1024] = {0};
         int log_flag = 0;
         if(g_log_path[0] != '\0') {
-            // Insert "_cmd" after the filename.
+            // Insert "_cmd" before extension.
             const char *last_dot = strrchr(g_log_path, '.');
             if( last_dot != NULL ) {
-                log_flag = 1;
                 int dir_len = last_dot - g_log_path;  // not include the '.'.
                 snprintf(cmd_log_path, sizeof(cmd_log_path), "%.*s_cmd%s", dir_len, g_log_path, last_dot);
             }
@@ -123,19 +112,20 @@ static void* worker_main(void* arg)
             int fd = open(cmd_log_path, O_WRONLY | O_CREAT | O_APPEND, 0644);
             if( fd >= 0 ) {
                 log_flag = 1;
-                dprintf(fd, "\nExecuting job ID[%d]: %s\n", current_job.id, current_job.command);
+                dprintf(fd, "\nExecuting job ID[%d] by worker [PID=%d]: %s\n", current_job.id, getpid(), current_job.command);
                 snprintf(sys_cmd, sizeof(sys_cmd), "%s >> %s 2>&1", current_job.command, cmd_log_path);
                 close(fd);
             }
         }
-        
+
         if(!log_flag) {
             snprintf(sys_cmd, sizeof(sys_cmd), "%s", current_job.command);
         }
 
         int return_code = system(sys_cmd);
 
-        pthread_mutex_lock(&g_scheduler.queue.mutex);
+        // Update job state after execution.
+        pthread_mutex_lock(&g_scheduler->queue.mutex);
 
         current_job.exit_code = return_code;
         current_job.state = (return_code == 0) ? JOB_COMPLETED : JOB_FAILED;
@@ -147,11 +137,44 @@ static void* worker_main(void* arg)
             strncpy(history_job->finished_time, current_job.finished_time, sizeof(history_job->finished_time) - 1);
         }
 
-        pthread_mutex_unlock(&g_scheduler.queue.mutex);
+        pthread_mutex_unlock(&g_scheduler->queue.mutex);
+
+        log_out("[%s][%s:%d] Worker [PID=%d] finished job ID[%d], exit_code=%d\n",
+                __FILE__,__func__,__LINE__, getpid(), current_job.id, return_code);
     }
 
-    log_out("[%s][%s:%d] Exiting worker thread...\n", __FILE__,__func__,__LINE__);
-    return NULL;
+    log_out("[%s][%s:%d] Worker process [PID=%d] exiting.\n", __FILE__,__func__,__LINE__, getpid());
+    _exit(0);
+}
+
+/// @brief  Fork N worker processes.
+/// @param  num_workers  Number of workers to fork.
+/// @return 0 on success (parent), -1 on fork failure.
+/// @note   Child processes run worker_process_main() and never return.
+static int fork_workers(int num_workers)
+{
+    if( num_workers > MINISCHED_MAX_WORKERS ) {
+        num_workers = MINISCHED_MAX_WORKERS;
+    }
+
+    for( int i = 0; i < num_workers; i++ ) {
+        pid_t pid = fork();
+        if( pid < 0 ) {
+            log_error("[%s][%s:%d] fork() failed for worker %d: %s\n", __FILE__,__func__,__LINE__, i, strerror(errno));
+            return -1;
+        } else if( pid == 0 ) {
+            // Child process: run worker loop (never returns).
+            worker_process_main();
+            _exit(0);  // Safety, should not reach here.
+        } else {
+            // Parent: record the child PID.
+            g_scheduler->worker_pids[i] = pid;
+            g_scheduler->num_workers = i + 1;
+            log_out("[%s][%s:%d] Forked worker %d [PID=%d]\n", __FILE__,__func__,__LINE__, i, pid);
+        }
+    }
+
+    return 0;
 }
 
 //-------------------------------------------
@@ -171,22 +194,16 @@ int main()
     MainDaemon *c_MainDaemon = MainDaemon::newInstance();
 
     // Get the absolute log path.
-    char log_path[1024] = {0};
     if( log_path_init() != 0 ) {
         printf("[%s][%s:%d] Failed to initialize log path\n",__FILE__,__func__,__LINE__);
         return 1;
     }
-    
-    // Create or clear the log file.
-    int log_fd = open(log_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    if( log_fd >= 0 ) close(log_fd);
 
     // Load config data before daemonize().
     log_out("[%s][%s:%d] Loading config file.\n", __FILE__,__func__,__LINE__);
     minisched_config_t config;
     config_load(MINISCHED_CONFIG_FILEPATH, &config);
 
-    
     // Daemonize the process to run in the background.
     log_out("[%s][%s:%d] Starting the MiniScheduler daemon process...\n", __FILE__,__func__,__LINE__);
     if( MainDaemon::daemonize(MINISCHED_PID_FILEPATH) != 0 ) {

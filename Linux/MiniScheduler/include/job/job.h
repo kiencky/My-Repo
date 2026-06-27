@@ -38,17 +38,20 @@ typedef struct {
     int head;                           // Index of the head (next pop).
     int tail;                           // Index of the tail (next push).
     int size;                           // Current number of jobs.
+    int shutting_down;                  // Flag to indicate shutdown.
     pthread_mutex_t mutex;              // Mutex to protect access to the queue.
     pthread_cond_t cond;                // Condition variable to inform job availability.
 } job_queue_t;
 
-// class JobManager {
-// public:
-//     // Note: Creates a new instance of JobManager.
-//     static JobManager* newInstance();
-//     int init_job_queue(job_queue_t *queue);
-// };
-
+// History table for tracking all jobs (lives in shared memory alongside queue).
+typedef struct {
+    job_queue_t queue;                          // The job queue.
+    job_t history_jobs[MINISCHED_MAX_JOBS];     // History of all jobs.
+    size_t history_jobs_size;                   // Number of jobs in history.
+    size_t next_job_id;                         // Next job ID to assign.
+    pid_t worker_pids[MINISCHED_MAX_WORKERS];   // PIDs of worker processes.
+    int num_workers;                            // Number of active workers.
+} shared_scheduler_t;
 
 /// @brief  Initializes the job queue.
 /// @param  queue
@@ -92,5 +95,30 @@ int job_queue_pop(job_queue_t *queue, job_t *job);
 /// @return A string representing the job state.
 /// @note   .
 const char* job_state_to_string(job_state_t state);
+
+/// @brief  Creates and initializes shared memory for the scheduler.
+/// @return Pointer to the shared scheduler,
+///         NULL : Failure.
+/// @note   Initializes mutex/cond with PTHREAD_PROCESS_SHARED attribute.
+shared_scheduler_t* shm_scheduler_create();
+
+/// @brief  Attaches to existing shared memory for the scheduler.
+/// @return Pointer to the shared scheduler
+///         NULL : Failure.
+/// @note   Used by worker processes after fork.
+shared_scheduler_t* shm_scheduler_attach();
+
+/// @brief  Detaches from the shared memory (unmaps).
+/// @param  scheduler
+/// @return 0   : Success
+///         -1  : Error.
+int shm_scheduler_detach(shared_scheduler_t *scheduler);
+
+/// @brief  Destroys the shared memory (unlinks).
+/// @param  scheduler
+/// @return 0   : Success
+///         -1  : Error.
+/// @note   Should only be called by the daemon on shutdown.
+int shm_scheduler_destroy(shared_scheduler_t *scheduler);
 
 #endif  // JOB_H
