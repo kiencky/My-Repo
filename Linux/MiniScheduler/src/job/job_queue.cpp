@@ -24,30 +24,6 @@ int job_queue_init(job_queue_t *queue)
     // Initialize default values.
     memset(queue, 0, sizeof(*queue));
 
-    if( pthread_mutex_init(&queue->mutex, NULL) != 0 ) {
-        log_error("[%s][%s:%d] Failed to initialize mutex\n",__FILE__,__func__,__LINE__);
-        return -1;
-    }
-
-    if( pthread_cond_init(&queue->cond, NULL) != 0 ) {
-        log_error("[%s][%s:%d] Failed to initialize condition variable\n",__FILE__,__func__,__LINE__);
-        pthread_mutex_destroy(&queue->mutex);
-        return -1;
-    }
-
-    return 0;
-}
-
-int job_queue_init(job_queue_t *queue)
-{
-    if( queue == NULL ) {
-        log_error("[%s][%s:%d] Invalid argument\n",__FILE__,__func__,__LINE__);
-        return -1;
-    }
-
-    // Initialize default values.
-    memset(queue, 0, sizeof(*queue));
-
     // Set up process-shared mutex.
     // Attribute is used to specify the behavior of the mutex.
     // Once the mutex is initialized, the attribute object can be destroyed while the mutex remains it internal settings.
@@ -145,7 +121,40 @@ const char* job_state_to_string(job_state_t state)
             return "UNKNOWN";
     }
 }
-=====================================================
+
+int scheduler_stats_update(shared_scheduler_t *scheduler)
+{
+    if( scheduler == NULL ) {
+        log_error("[%s][%s:%d] Invalid argument\n",__FILE__,__func__,__LINE__);
+        return -1;
+    }
+
+    memset(&scheduler->stats, 0, sizeof(scheduler->stats));
+
+    scheduler->stats.total_jobs = scheduler->history_jobs_size;
+
+    for( size_t i = 0; i < scheduler->history_jobs_size; i++ ) {
+        job_t *job = &scheduler->history_jobs[i];
+        switch(job->state) {
+            case JOB_PENDING:
+                scheduler->stats.pending_jobs++;
+                break;
+            case JOB_RUNNING:
+                scheduler->stats.running_jobs++;
+                break;
+            case JOB_COMPLETED:
+                scheduler->stats.completed_jobs++;
+                break;
+            case JOB_FAILED:
+                scheduler->stats.failed_jobs++;
+                break;
+            default:
+                break;
+        }
+    }
+
+    return 0;
+}
 
 //-------------------------------------------
 // Note: Creates and initializes shared memory for the scheduler.
@@ -153,7 +162,7 @@ const char* job_state_to_string(job_state_t state)
 //
 shared_scheduler_t* shm_scheduler_create()
 {
-    // Remove existing shared memory if any (cleanup from previous crash).
+    // Remove existing shared memory.
     shm_unlink(MINISCHED_JOBQUEUE_SHM_NAME);
 
     int fd = shm_open(MINISCHED_JOBQUEUE_SHM_NAME, O_CREAT | O_RDWR, 0666);
@@ -168,6 +177,7 @@ shared_scheduler_t* shm_scheduler_create()
         return NULL;
     }
 
+    // Map the shared memory object to the process's address space.
     shared_scheduler_t *scheduler = (shared_scheduler_t*)mmap(NULL, sizeof(shared_scheduler_t),
                                      PROT_READ | PROT_WRITE,
                                      MAP_SHARED, fd, 0);
@@ -223,7 +233,9 @@ shared_scheduler_t* shm_scheduler_attach()
 //
 int shm_scheduler_detach(shared_scheduler_t *scheduler)
 {
-    if( scheduler == NULL ) return -1;
+    if( scheduler == NULL ) {
+        return -1;
+    }
 
     if( munmap(scheduler, sizeof(shared_scheduler_t)) != 0 ) {
         log_error("[%s][%s:%d] munmap error\n",__FILE__,__func__,__LINE__);
@@ -239,7 +251,9 @@ int shm_scheduler_detach(shared_scheduler_t *scheduler)
 //
 int shm_scheduler_destroy(shared_scheduler_t *scheduler)
 {
-    if( scheduler == NULL ) return -1;
+    if( scheduler == NULL ) {
+        return -1;
+    }
 
     pthread_mutex_destroy(&scheduler->queue.mutex);
     pthread_cond_destroy(&scheduler->queue.cond);

@@ -1,0 +1,113 @@
+[Log][unix_socket.cpp][log_path_init:152] Log path initialized: /mnt/e/Study/Linux/MiniScheduler/logs/minisched_20260628134448.log
+[Log][main_daemon.cpp][main:209] Loading config file.
+[Log][main_daemon.cpp][main:214] Starting the MiniScheduler daemon process...
+[Log][unix_socket.cpp][daemonize:589] Daemonizing the process...
+[Log][main_daemon.cpp][main:241] Forking 4 worker processes...
+[Log][main_daemon.cpp][fork_workers:83] Forked worker 0 [PID: 6197]
+[Log][main_daemon.cpp][worker_process_main:95] Worker process [PID: 6197] is running.
+[Log][main_daemon.cpp][worker_process_main:95] Worker process [PID: 6198] is running.
+[Log][main_daemon.cpp][fork_workers:83] Forked worker 1 [PID: 6198]
+[Log][main_daemon.cpp][fork_workers:83] Forked worker 2 [PID: 6199]
+[Log][main_daemon.cpp][worker_process_main:95] Worker process [PID: 6199] is running.
+[Log][main_daemon.cpp][worker_process_main:95] Worker process [PID: 6200] is running.
+[Log][main_daemon.cpp][fork_workers:83] Forked worker 3 [PID: 6200]
+[Log][main_daemon.cpp][main:249] Starting IPC server on socket: /tmp/minisched.sock
+[Log][main_daemon.cpp][main:261] Waiting for client connection...
+[Log][main_daemon.cpp][main:271] Receiving command from client...
+[Log][main_client.cpp][main:66] Sending command to daemon: ADD sleep 5
+[Log][main_daemon.cpp][main:278] Handling ADD command...
+[Log][main_daemon.cpp][main:312] Enqueued done job ID[1]: sleep 5
+[Log][main_daemon.cpp][main:382] Sending response to client.
+[Log][main_daemon.cpp][main:261] Waiting for client connection...
+[Log][main_client.cpp][main:91] Receive: ENQUEUE JOB ID[1] DONE
+[Log][main_client.cpp][main:66] Sending command to daemon: ADD sleep 5
+[Log][main_daemon.cpp][main:271] Receiving command from client...
+[Log][main_daemon.cpp][main:278] Handling ADD command...
+[Log][main_daemon.cpp][main:312] Enqueued done job ID[2]: sleep 5
+[Log][main_daemon.cpp][main:382] Sending response to client.
+[Log][main_client.cpp][main:91] Receive: ENQUEUE JOB ID[2] DONE
+[Log][main_daemon.cpp][main:261] Waiting for client connection...
+[Log][main_daemon.cpp][main:271] Receiving command from client...
+[Log][main_client.cpp][main:66] Sending command to daemon: ADD sleep 5
+[Log][main_daemon.cpp][main:278] Handling ADD command...
+[Log][main_daemon.cpp][main:312] Enqueued done job ID[3]: sleep 5
+[Log][main_daemon.cpp][main:382] Sending response to client.
+[Log][main_client.cpp][main:91] Receive: ENQUEUE JOB ID[3] DONE
+[Log][main_daemon.cpp][main:261] Waiting for client connection...
+[Log][main_daemon.cpp][main:271] Receiving command from client...
+[Log][main_client.cpp][main:66] Sending command to daemon: ADD sleep 5
+[Log][main_daemon.cpp][main:278] Handling ADD command...
+[Log][main_daemon.cpp][main:312] Enqueued done job ID[4]: sleep 5
+[Log][main_daemon.cpp][main:382] Sending response to client.
+[Log][main_client.cpp][main:91] Receive: ENQUEUE JOB ID[4] DONE
+[Log][main_daemon.cpp][main:261] Waiting for client connection...
+[Log][main_client.cpp][main:66] Sending command to daemon: STATUS
+[Log][main_daemon.cpp][main:271] Receiving command from client...
+[Log][main_daemon.cpp][main:328] Handling STATUS command...
+[Log][main_daemon.cpp][main:382] Sending response to client.
+[Log][main_daemon.cpp][main:261] Waiting for client connection...
+[Log][main_client.cpp][main:91] Receive: TOTAL = 4
+ID  PID     STATE           CREATED TIME            STARTED TIME            FINISHED TIME           COMMAND
+1   6197    RUNNING         2026-06-28 13:45:24     2026-06-28 13:45:24                             sleep 5
+2   6198    RUNNING         2026-06-28 13:45:24     2026-06-28 13:45:24                             sleep 5
+3   6199    RUNNING         2026-06-28 13:45:24     2026-06-28 13:45:24                             sleep 5
+4   6200    RUNNING         2026-06-28 13:45:24     2026-06-28 13:45:24                             sleep 5
+
+[Log][main_daemon.cpp][worker_process_main:179] Worker [PID: 6199] finished job ID[3], exit_code=0
+[Log][main_daemon.cpp][worker_process_main:179] Worker [PID: 6197] finished job ID[1], exit_code=0
+[Log][main_daemon.cpp][worker_process_main:179] Worker [PID: 6198] finished job ID[2], exit_code=0
+[Log][main_daemon.cpp][worker_process_main:179] Worker [PID: 6200] finished job ID[4], exit_code=0
+[Log][main_client.cpp][main:66] Sending command to daemon: STATUS
+[Log][main_daemon.cpp][main:271] Receiving command from client...
+[Log][main_daemon.cpp][main:328] Handling STATUS command...
+[Log][main_daemon.cpp][main:382] Sending response to client.
+[Log][main_client.cpp][main:91] Receive: TOTAL = 4
+ID  PID     STATE           CREATED TIME            STARTED TIME            FINISHED TIME           COMMAND
+1   6197    DONE            2026-06-28 13:45:24     2026-06-28 13:45:24     2026-06-28 13:45:29     sleep 5
+2   6198    DONE            2026-06-28 13:45:24     2026-06-28 13:45:24     2026-06-28 13:45:29     sleep 5
+3   6199    DONE            2026-06-28 13:45:24     2026-06-28 13:45:24     2026-06-28 13:45:29     sleep 5
+4   6200    DONE            2026-06-28 13:45:24     2026-06-28 13:45:24     2026-06-28 13:45:29     sleep 5
+
+[Log][main_daemon.cpp][main:261] Waiting for client connection...
+[Log][main_daemon.cpp][main:271] Receiving command from client...
+[Log][main_client.cpp][main:66] Sending command to daemon: ADD ls /nonexistent_path
+[Log][main_daemon.cpp][main:278] Handling ADD command...
+[Log][main_daemon.cpp][main:312] Enqueued done job ID[5]: ls /nonexistent_path
+[Log][main_daemon.cpp][main:382] Sending response to client.
+[Log][main_daemon.cpp][main:261] Waiting for client connection...
+[Log][main_client.cpp][main:91] Receive: ENQUEUE JOB ID[5] DONE
+[Log][main_daemon.cpp][worker_process_main:179] Worker [PID: 6197] finished job ID[5], exit_code=512
+[Log][main_client.cpp][main:66] Sending command to daemon: STATUS
+[Log][main_daemon.cpp][main:271] Receiving command from client...
+[Log][main_daemon.cpp][main:328] Handling STATUS command...
+[Log][main_daemon.cpp][main:382] Sending response to client.
+[Log][main_daemon.cpp][main:261] Waiting for client connection...
+[Log][main_client.cpp][main:91] Receive: TOTAL = 5
+ID  PID     STATE           CREATED TIME            STARTED TIME            FINISHED TIME           COMMAND
+1   6197    DONE            2026-06-28 13:45:24     2026-06-28 13:45:24     2026-06-28 13:45:29     sleep 5
+2   6198    DONE            2026-06-28 13:45:24     2026-06-28 13:45:24     2026-06-28 13:45:29     sleep 5
+3   6199    DONE            2026-06-28 13:45:24     2026-06-28 13:45:24     2026-06-28 13:45:29     sleep 5
+4   6200    DONE            2026-06-28 13:45:24     2026-06-28 13:45:24     2026-06-28 13:45:29     sleep 5
+5   6197    FAILED          2026-06-28 13:46:51     2026-06-28 13:46:51     2026-06-28 13:46:51     ls /nonexistent_path
+
+[Log][main_daemon.cpp][handle_signal:191] Temination signal received, shutting down the daemon...
+[Error][unix_socket.cpp][ipc_server_accept:461] accept error
+: Interrupted system call
+[Error][main_daemon.cpp][main:264] Failed to accept client connection
+: Interrupted system call
+[Log][main_daemon.cpp][main:391] Gracefully shutting down ...
+[Log][main_daemon.cpp][worker_process_main:107] Worker [PID: 6199] shutting down.
+[Log][main_daemon.cpp][worker_process_main:107] Worker [PID: 6198] shutting down.
+[Log][main_daemon.cpp][worker_process_main:182] Worker process [PID: 6199] exiting.
+[Log][main_daemon.cpp][worker_process_main:182] Worker process [PID: 6198] exiting.
+[Log][main_daemon.cpp][worker_process_main:107] Worker [PID: 6200] shutting down.
+[Log][main_daemon.cpp][worker_process_main:107] Worker [PID: 6197] shutting down.
+[Log][main_daemon.cpp][worker_process_main:182] Worker process [PID: 6200] exiting.
+[Log][main_daemon.cpp][worker_process_main:182] Worker process [PID: 6197] exiting.
+[Log][main_daemon.cpp][main:405] Worker [PID: 6197] exited with status 0
+[Log][main_daemon.cpp][main:405] Worker [PID: 6198] exited with status 0
+[Log][main_daemon.cpp][main:405] Worker [PID: 6199] exited with status 0
+[Log][main_daemon.cpp][main:405] Worker [PID: 6200] exited with status 0
+[Log][main_daemon.cpp][main:415] MiniScheduler daemon exited.
+[Error][unix_socket.cpp][ipc_client_connect:673] connect error
+: No such file or directory

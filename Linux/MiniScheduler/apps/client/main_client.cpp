@@ -63,6 +63,7 @@ int main(int argc, char* argv[])
     }
 
     // Send data to the daemon.
+    log_out("[%s][%s:%d] Sending command to daemon: %s", __FILE__,__func__,__LINE__, buffer);
     if( c_MainClient->ipc_send_all(client_fd, buffer, strlen(buffer)) < 0 ) {
         log_error("[%s][%s:%d] Send error\n", __FILE__,__func__,__LINE__);
         close(client_fd);
@@ -87,7 +88,7 @@ int main(int argc, char* argv[])
         close(client_fd);
         return 1;
     } else {
-        log_out("[%s][%s:%d] Receive: %s\n", __FILE__,__func__,__LINE__, resp);
+        log_out("[%s][%s:%d] Receive: %s", __FILE__,__func__,__LINE__, resp);
     }
 
     close(client_fd);

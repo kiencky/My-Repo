@@ -594,12 +594,13 @@ int MainDaemon::daemonize(const char *file_path)
         return -1;
     }
 
+// Parent process.
     if( pid > 0) {
         _exit(0);   // Exit immediately in the parent process to allow the child to run independently.
     }
 
-// The child process.
-    // Detach child process from TTY(Controllign terminal).
+// Child process.
+    // Detach child process from TTY(Controlling terminal).
     if( setsid() < 0 ) {
         log_error("[%s][%s:%d] setsid error\n",__FILE__,__func__,__LINE__);
         return -1;

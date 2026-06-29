@@ -3,7 +3,7 @@
 // Note: Main daemon process for the MiniScheduler project.
 //       Running in background, initialize the IPC(Unix domain socket).
 // Flow: Create socket -> Listen client -> Connect(accept) client -> Read from client -> Close socket
-//       Milestone 4: Shared memory + multi-process workers (fork-based).
+//       Shared memory + multi worker processes.
 //==================================================================================================================
 
 #include <stdio.h>
@@ -34,6 +34,11 @@ static volatile sig_atomic_t g_running = 1;     // Flag to control the main loop
 // Global pointer to the shared memory scheduler (accessible by daemon and workers after fork).
 static shared_scheduler_t *g_scheduler = NULL;
 
+static job_t* find_job_in_history_jobs(size_t job_id);
+static int fork_workers(int num_workers);
+static void worker_process_main();
+
+
 /// @brief  Find a job in the history jobs array by its ID.
 /// @param  job_id 
 /// @return 
@@ -45,30 +50,61 @@ static job_t* find_job_in_history_jobs(size_t job_id)
             return &g_scheduler->history_jobs[i];
         }
     }
-
+    
     return NULL;
 }
 
-/// @brief  Worker process main function. Each forked child runs this loop.
+
+/// @brief  Fork worker processes.
+/// @param  num_workers  Number of workers to fork.
+/// @return 0 : Success
+///         -1: Error
+/// @note   Child processes run worker_process_main() and never return.
+static int fork_workers(int num_workers)
+{
+    if( num_workers > MINISCHED_MAX_WORKERS ) {
+        log_error("[%s][%s:%d] Number of workers exceeds maximum limit (%d), using %d instead.\n", __FILE__,__func__,__LINE__, num_workers, MINISCHED_MAX_WORKERS);
+        num_workers = MINISCHED_MAX_WORKERS;
+    }
+
+    for( int i = 0; i < num_workers; i++ ) {
+        pid_t pid = fork();
+        if( pid < 0 ) {
+            log_error("[%s][%s:%d] fork() failed for worker %d\n", __FILE__,__func__,__LINE__, i);
+            return -1;
+        } else if( pid == 0 ) {
+            // Child process: run worker loop.
+            worker_process_main();
+            _exit(0);
+        } else {
+            // Parent process: record the child PID.
+            g_scheduler->worker_pids[i] = pid;
+            g_scheduler->num_workers = i + 1;
+            log_out("[%s][%s:%d] Forked worker %d [PID: %d]\n", __FILE__,__func__,__LINE__, i, pid);
+        }
+    }
+
+    return 0;
+}
+
+/// @brief  Worker process main function.
 /// @note   Pops jobs from the shared memory queue and executes them.
+///         If mutex owner died, make it consistent (robust mutex).
 static void worker_process_main()
 {
-    log_out("[%s][%s:%d] Worker process [PID=%d] started.\n", __FILE__,__func__,__LINE__, getpid());
+    log_out("[%s][%s:%d] Worker process [PID: %d] is running.\n", __FILE__,__func__,__LINE__, getpid());
 
     while(1) {
         pthread_mutex_lock(&g_scheduler->queue.mutex);
 
-        // If mutex owner died, make it consistent (robust mutex).
-        // pthread_mutex_consistent is needed when using PTHREAD_MUTEX_ROBUST.
-
         // Wait until there is a job in the queue or shutdown is requested.
-        while( job_queue_is_empty(&g_scheduler->queue) && !g_scheduler->queue.shutting_down ) {
+        while( job_queue_is_empty(&g_scheduler->queue) && !g_scheduler->shutting_down ) {
             pthread_cond_wait(&g_scheduler->queue.cond, &g_scheduler->queue.mutex);
         }
 
         // If the queue is empty and shutting down, exit the loop.
-        if( job_queue_is_empty(&g_scheduler->queue) && g_scheduler->queue.shutting_down ) {
-            log_out("[%s][%s:%d] Worker [PID=%d] shutting down.\n", __FILE__,__func__,__LINE__, getpid());
+        if( job_queue_is_empty(&g_scheduler->queue) && g_scheduler->shutting_down ) {
+            log_out("[%s][%s:%d] Worker [PID: %d] shutting down.\n", __FILE__,__func__,__LINE__, getpid());
             pthread_mutex_unlock(&g_scheduler->queue.mutex);
             break;
         }
@@ -77,7 +113,7 @@ static void worker_process_main()
 
         // Pop a job from the queue.
         if( job_queue_pop(&g_scheduler->queue, &current_job) == -1 ) {
-            log_error("[%s][%s:%d] Worker [PID=%d] failed to pop job\n", __FILE__,__func__,__LINE__, getpid());
+            log_error("[%s][%s:%d] Worker [PID: %d] failed to pop job\n", __FILE__,__func__,__LINE__, getpid());
             pthread_mutex_unlock(&g_scheduler->queue.mutex);
             continue;
         }
@@ -112,7 +148,7 @@ static void worker_process_main()
             int fd = open(cmd_log_path, O_WRONLY | O_CREAT | O_APPEND, 0644);
             if( fd >= 0 ) {
                 log_flag = 1;
-                dprintf(fd, "\nExecuting job ID[%d] by worker [PID=%d]: %s\n", current_job.id, getpid(), current_job.command);
+                dprintf(fd, "\nExecuting job ID[%d] by worker [PID: %d]: %s\n", current_job.id, getpid(), current_job.command);
                 snprintf(sys_cmd, sizeof(sys_cmd), "%s >> %s 2>&1", current_job.command, cmd_log_path);
                 close(fd);
             }
@@ -139,42 +175,12 @@ static void worker_process_main()
 
         pthread_mutex_unlock(&g_scheduler->queue.mutex);
 
-        log_out("[%s][%s:%d] Worker [PID=%d] finished job ID[%d], exit_code=%d\n",
+        log_out("[%s][%s:%d] Worker [PID: %d] finished job ID[%d], exit_code=%d\n",
                 __FILE__,__func__,__LINE__, getpid(), current_job.id, return_code);
     }
 
-    log_out("[%s][%s:%d] Worker process [PID=%d] exiting.\n", __FILE__,__func__,__LINE__, getpid());
+    log_out("[%s][%s:%d] Worker process [PID: %d] exiting.\n", __FILE__,__func__,__LINE__, getpid());
     _exit(0);
-}
-
-/// @brief  Fork N worker processes.
-/// @param  num_workers  Number of workers to fork.
-/// @return 0 on success (parent), -1 on fork failure.
-/// @note   Child processes run worker_process_main() and never return.
-static int fork_workers(int num_workers)
-{
-    if( num_workers > MINISCHED_MAX_WORKERS ) {
-        num_workers = MINISCHED_MAX_WORKERS;
-    }
-
-    for( int i = 0; i < num_workers; i++ ) {
-        pid_t pid = fork();
-        if( pid < 0 ) {
-            log_error("[%s][%s:%d] fork() failed for worker %d: %s\n", __FILE__,__func__,__LINE__, i, strerror(errno));
-            return -1;
-        } else if( pid == 0 ) {
-            // Child process: run worker loop (never returns).
-            worker_process_main();
-            _exit(0);  // Safety, should not reach here.
-        } else {
-            // Parent: record the child PID.
-            g_scheduler->worker_pids[i] = pid;
-            g_scheduler->num_workers = i + 1;
-            log_out("[%s][%s:%d] Forked worker %d [PID=%d]\n", __FILE__,__func__,__LINE__, i, pid);
-        }
-    }
-
-    return 0;
 }
 
 //-------------------------------------------
@@ -182,12 +188,11 @@ static int fork_workers(int num_workers)
 //
 static void handle_signal(int signo) {
     if( signo == SIGINT || signo == SIGTERM ) {
-        log_out("[%s][%s:%d] Temination signal received, shutting down the daemon...\n", __FILE__,__func__,__LINE__);
         g_running = 0;
     }
 }
 
-// Daemon main function.
+// DAEMON MAIN.
 int main()
 {
     printf("[%s][%s:%d] MiniScheduler daemon starting...\n", __FILE__,__func__,__LINE__);
@@ -211,25 +216,31 @@ int main()
         return 1;
     }
 
+    // signal(SIGINT, handle_signal);
+    // signal(SIGTERM, handle_signal);
+
     // Set up signal handlers for graceful shutdown.
-    signal(SIGINT, handle_signal);
-    signal(SIGTERM, handle_signal);
+    // Use sigaction() without SA_RESTART so that blocking syscalls (accept) return EINTR on signal.
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = handle_signal;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;                    // No SA_RESTART: accept() will return -1 with errno = EINTR.
+    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
 
-
-    memset(&g_scheduler, 0, sizeof(g_scheduler));
-    g_scheduler.next_job_id = 1;
-
-    // Initialize the job queue.
-    log_out("[%s][%s:%d] Initializing job queue...\n", __FILE__,__func__,__LINE__);
-    if( job_queue_init(&g_scheduler.queue) != 0 ) {
-        log_error("[%s][%s:%d] Failed to initialize job queue\n", __FILE__,__func__,__LINE__);
+    // Create shared memory for the scheduler.
+    g_scheduler = shm_scheduler_create();
+    if( g_scheduler == NULL ) {
+        log_error("[%s][%s:%d] Failed to create shared scheduler\n",__FILE__,__func__,__LINE__);
         return 1;
     }
 
-    // Create and start the worker thread.
-    log_out("[%s][%s:%d] Creating worker thread...\n", __FILE__,__func__,__LINE__);
-    if( pthread_create(&g_scheduler.worker_thread, NULL, worker_main, NULL) != 0 ) {
-        log_error("[%s][%s:%d] Failed to create worker thread\n", __FILE__,__func__,__LINE__);
+    // Fork worker processes.
+    log_out("[%s][%s:%d] Forking %d worker processes...\n", __FILE__,__func__,__LINE__, config.num_workers);
+    if( fork_workers(config.num_workers) != 0 ) {
+        log_error("[%s][%s:%d] Failed to fork worker processes\n",__FILE__,__func__,__LINE__);
+        shm_scheduler_destroy(g_scheduler);
         return 1;
     }
 
@@ -237,8 +248,9 @@ int main()
     log_out("[%s][%s:%d] Starting IPC server on socket: %s\n", __FILE__,__func__,__LINE__, config.socket_path);
     int server_fd = c_MainDaemon->ipc_server_listen(config.socket_path);
     if( server_fd < 0 ) {
-        log_error("[%s][%s:%d] Failed to start IPC server\n", __FILE__,__func__,__LINE__);
-        return 1;   // If listening failed, exit here.
+        log_error("[%s][%s:%d] Failed to start IPC server\n", __FILE__,__func__,__LINE__);\
+        shm_scheduler_destroy(g_scheduler);
+        return 1;
     }
 
     // Main server loop to connect, handle one client at a time.
@@ -280,26 +292,26 @@ int main()
                     strncpy(resp, "ERR EMPTY COMMAND\n", sizeof(resp) - 1);
                 } else {
                 // Enqueue the job to the job queue.
-                    pthread_mutex_lock(&g_scheduler.queue.mutex);
+                    pthread_mutex_lock(&g_scheduler->queue.mutex);
 
-                    if( job_queue_is_full(&g_scheduler.queue) ) {
+                    if( job_queue_is_full(&g_scheduler->queue) ) {
                         log_error("[%s][%s:%d] Job queue is full\n", __FILE__,__func__,__LINE__);
                         strncpy(resp, "ERR QUEUE IS FULL\n", sizeof(resp) - 1);
-                    } else if( g_scheduler.history_jobs_size >= MINISCHED_MAX_JOBS ) {
+                    } else if( g_scheduler->history_jobs_size >= MINISCHED_MAX_JOBS ) {
                         log_error("[%s][%s:%d] History job table is full\n", __FILE__,__func__,__LINE__);
                         strncpy(resp, "ERR JOB TABLE IS FULL\n", sizeof(resp) - 1);
                     } else {
                         job_t job = {};
-                        job.id = g_scheduler.next_job_id++;
+                        job.id = g_scheduler->next_job_id++;
                         strncpy(job.command, command, sizeof(job.command) - 1);
                         job.state = JOB_PENDING;
                         get_local_time_string(job.created_time, sizeof(job.created_time), time(NULL), LOCAL_TIME_FORMAT_STRING);
 
-                        if( job_queue_push(&g_scheduler.queue, &job) == 0 ) {
+                        if( job_queue_push(&g_scheduler->queue, &job) == 0 ) {
                             log_out("[%s][%s:%d] Enqueued done job ID[%d]: %s\n", __FILE__,__func__,__LINE__, job.id, job.command);
-                            g_scheduler.history_jobs[g_scheduler.history_jobs_size++] = job;
+                            g_scheduler->history_jobs[g_scheduler->history_jobs_size++] = job;
                             
-                            pthread_cond_signal(&g_scheduler.queue.cond);          // Signal the worker thread that a new job is available.
+                            pthread_cond_signal(&g_scheduler->queue.cond);          // Signal the worker thread that a new job is available.
                             
                             snprintf(resp, sizeof(resp), "ENQUEUE JOB ID[%d] DONE\n", job.id);
                         } else {
@@ -308,36 +320,48 @@ int main()
                         }
                     }
 
-                    pthread_mutex_unlock(&g_scheduler.queue.mutex);
+                    pthread_mutex_unlock(&g_scheduler->queue.mutex);
                 }
             } else if( strncmp(c_buffer, "STATUS", 6) == 0 ) {
             // Handle the "STATUS" command to return the status of all jobs in the history.
                 log_out("[%s][%s:%d] Handling STATUS command...\n", __FILE__,__func__,__LINE__);
-                pthread_mutex_lock(&g_scheduler.queue.mutex);
+                pthread_mutex_lock(&g_scheduler->queue.mutex);
 
-                if( g_scheduler.history_jobs_size == 0 ) {
+                if( g_scheduler->history_jobs_size == 0 ) {
                     log_error("[%s][%s:%d] No jobs in history\n", __FILE__,__func__,__LINE__);
                     strncpy(resp, "ERR JOB TABLE IS EMPTY\n", sizeof(resp) - 1);
                 } else {
-                    int offset = snprintf(resp, sizeof(resp), "TOTAL = %d\r\n", g_scheduler.history_jobs_size);
-                    if( offset > 0 ) {
-                        offset += snprintf( resp + offset,
-                                    sizeof(resp) - offset,
-                                    "ID  PID     STATE           CREATED TIME            STARTED TIME            FINISHED TIME           COMMAND\r\n" );
+                    if( scheduler_stats_update(g_scheduler) != 0 ) {
+                        log_error("[%s][%s:%d] Failed to update scheduler stats\n", __FILE__,__func__,__LINE__);
                     }
 
-                    for( size_t job_index = 0; (job_index < g_scheduler.history_jobs_size) && (offset > 0) && (offset < int(sizeof(resp) - 1)); job_index++) {
-                        job_t job = g_scheduler.history_jobs[job_index];
+                    int offset = snprintf(resp, sizeof(resp),
+                                "\r\nTOTAL = %d | DONE = %d | FAILED = %d | RUNNING = %d | PENDING = %d\r\n",
+                                g_scheduler->stats.total_jobs,
+                                g_scheduler->stats.completed_jobs,
+                                g_scheduler->stats.failed_jobs,
+                                g_scheduler->stats.running_jobs,
+                                g_scheduler->stats.pending_jobs);
+
+                    // int offset = snprintf(resp, sizeof(resp), "TOTAL = %d\r\n", g_scheduler->history_jobs_size);
+                    if( offset > 0 ) {
+                        offset += snprintf( resp + offset,
+                                        sizeof(resp) - offset,
+                                        "ID  PID     STATE           CREATED TIME            STARTED TIME            FINISHED TIME           COMMAND\r\n" );
+                    }
+
+                    for( size_t job_index = 0; (job_index < g_scheduler->history_jobs_size) && (offset > 0) && (offset < int(sizeof(resp) - 1)); job_index++) {
+                        job_t job = g_scheduler->history_jobs[job_index];
                         int n = snprintf( resp + offset,
-                                    sizeof(resp) - offset,
-                                    "%-4d%-8d%-16s%-24s%-24s%-24s%s\r\n",
-                                    job.id,
-                                    job.pid,
-                                    job_state_to_string(job.state),
-                                    job.created_time,
-                                    job.started_time,
-                                    job.finished_time,
-                                    job.command );
+                                        sizeof(resp) - offset,
+                                        "%-4d%-8d%-16s%-24s%-24s%-24s%s\r\n",
+                                        job.id,
+                                        job.pid,
+                                        job_state_to_string(job.state),
+                                        job.created_time,
+                                        job.started_time,
+                                        job.finished_time,
+                                        job.command );
                         
                         // If there is an error or no more space to write, break the loop.
                         if(n <= 0) {
@@ -356,7 +380,7 @@ int main()
                     resp[sizeof(resp) - 1] = '\0';
                 }
 
-                pthread_mutex_unlock(&g_scheduler.queue.mutex);
+                pthread_mutex_unlock(&g_scheduler->queue.mutex);
             } else {
             // If the command is invalid, send an "UNKNOWN_CMD" response.
                 log_error("[%s][%s:%d] UNKNOWN COMMAND: %s\n", __FILE__,__func__,__LINE__, c_buffer);
@@ -376,19 +400,26 @@ int main()
 
 // Gracefully shutdown the worker thread and clean up resources.
     log_out("[%s][%s:%d] Gracefully shutting down ...\n", __FILE__,__func__,__LINE__);
-    pthread_mutex_lock(&g_scheduler.queue.mutex);
+    pthread_mutex_lock(&g_scheduler->queue.mutex);
 
-    g_scheduler.shutting_down = 1;
+    g_scheduler->shutting_down = 1;
 
-    pthread_cond_broadcast(&g_scheduler.queue.cond);    // Wake up all waiting threads to allow them to exit.
-    pthread_mutex_unlock(&g_scheduler.queue.mutex);
+    pthread_cond_broadcast(&g_scheduler->queue.cond);    // Wake up all waiting threads to allow them to exit.
+    pthread_mutex_unlock(&g_scheduler->queue.mutex);
 
-    pthread_join(g_scheduler.worker_thread, NULL);      // Wait for the worker thread to finish.
-    pthread_cond_destroy(&g_scheduler.queue.cond);
-    pthread_mutex_destroy(&g_scheduler.queue.mutex);
+    // Wait for all worker processes to exit.
+    for( int i = 0; i < g_scheduler->num_workers; i++ ) {
+        if( g_scheduler->worker_pids[i] > 0 ) {
+            int status;
+            waitpid(g_scheduler->worker_pids[i], &status, 0);
+            log_out("[%s][%s:%d] Worker [PID: %d] exited with status %d\n",
+                    __FILE__,__func__,__LINE__, g_scheduler->worker_pids[i], WEXITSTATUS(status));
+        }
+    }
 
-    // Clean up the PID file, socket file and close the server socket.
+    // Clean up resources.
     MainDaemon::remove_pid_file(MINISCHED_PID_FILEPATH);
+    shm_scheduler_destroy(g_scheduler);
     unlink(config.socket_path);
     close(server_fd);
     

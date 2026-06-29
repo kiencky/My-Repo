@@ -1,0 +1,8 @@
+[Log][unix_socket.cpp][log_path_init:152] Log path initialized: /mnt/e/Study/Linux/MiniScheduler/logs/minisched_20260628145645.log
+[Log][main_daemon.cpp][main:209] Loading config file.
+[Log][main_daemon.cpp][main:214] Starting the MiniScheduler daemon process...
+[Log][unix_socket.cpp][is_daemon_existing:569] This process already exists
+[Error][unix_socket.cpp][daemonize:585] Daemon already exists or error occurred
+: No such file or directory
+[Error][main_daemon.cpp][main:216] Daemonize failed.
+: No such file or directory

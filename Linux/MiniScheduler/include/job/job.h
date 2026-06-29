@@ -38,10 +38,18 @@ typedef struct {
     int head;                           // Index of the head (next pop).
     int tail;                           // Index of the tail (next push).
     int size;                           // Current number of jobs.
-    int shutting_down;                  // Flag to indicate shutdown.
     pthread_mutex_t mutex;              // Mutex to protect access to the queue.
     pthread_cond_t cond;                // Condition variable to inform job availability.
 } job_queue_t;
+
+// Scheduler statistics for monitoring.
+typedef struct {
+    int total_jobs;          // Total number of jobs in the queue.
+    int pending_jobs;        // Number of pending jobs.
+    int running_jobs;        // Number of running jobs.
+    int completed_jobs;      // Number of completed jobs.
+    int failed_jobs;         // Number of failed jobs.
+} scheduler_stats_t;
 
 // History table for tracking all jobs (lives in shared memory alongside queue).
 typedef struct {
@@ -50,7 +58,9 @@ typedef struct {
     size_t history_jobs_size;                   // Number of jobs in history.
     size_t next_job_id;                         // Next job ID to assign.
     pid_t worker_pids[MINISCHED_MAX_WORKERS];   // PIDs of worker processes.
+    int shutting_down;                          // Flag to indicate shutdown.
     int num_workers;                            // Number of active workers.
+    scheduler_stats_t stats;                    // Scheduler statistics.
 } shared_scheduler_t;
 
 /// @brief  Initializes the job queue.
@@ -95,6 +105,13 @@ int job_queue_pop(job_queue_t *queue, job_t *job);
 /// @return A string representing the job state.
 /// @note   .
 const char* job_state_to_string(job_state_t state);
+
+/// @brief  Updates the scheduler statistics.
+/// @param  scheduler
+/// @return 0  : Success
+///         -1 : Error
+/// @note   .
+int scheduler_stats_update(shared_scheduler_t *scheduler);
 
 /// @brief  Creates and initializes shared memory for the scheduler.
 /// @return Pointer to the shared scheduler,
