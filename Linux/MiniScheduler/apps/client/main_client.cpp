@@ -1,5 +1,5 @@
 //================================================================================================================================
-// main.cpp
+// main_client.cpp
 // Note: Client process.
 //       Parsing CLI command and sending request to daemon via Unix domain socket.
 // Flow: Receive CLI command (main() parameters) -> Parse -> Connect socket -> Send and Receive data
@@ -14,6 +14,8 @@
 #include "../../include/config/config.h"
 #include "../../include/config/config_loader.h"
 
+
+// CLIENT MAIN.
 int main(int argc, char* argv[])
 {
     // Load config data before daemonize().
@@ -47,6 +49,15 @@ int main(int argc, char* argv[])
             return 1;
         } else {
             snprintf(buffer, sizeof(buffer), "STATUS\n");
+        }
+    } else if( strcmp(argv[1], "stop") == 0) {
+        if( argc > 2 ) {
+        // If the command line has more than 2 parameters, show the usage instruction and return error.
+            log_error("[%s][%s:%d] Exceed parameters for status command\n",__FILE__,__func__,__LINE__);
+            usage(argv[0]);
+            return 1;
+        } else {
+            snprintf(buffer, sizeof(buffer), "STOP\n");
         }
     } else {
         // If the command is invalid, show the usage instruction and return error.

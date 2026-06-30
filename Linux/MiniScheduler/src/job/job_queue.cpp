@@ -56,18 +56,24 @@ int job_queue_init(job_queue_t *queue)
 }
 
 ///-------------------------------------------
-/// Note: Check if the job queue is full.
+// Note: Check if the job queue is full.
 //
 int job_queue_is_full(const job_queue_t *queue)
 {
     return (queue->size >= MINISCHED_MAX_JOBS);
 }
 
+///-------------------------------------------
+// Note: Check if the job queue is empty.
+//
 int job_queue_is_empty(const job_queue_t *queue)
 {
     return (queue->size == 0);
 }
 
+///-------------------------------------------
+// Note: Push a job into the job queue.
+//
 int job_queue_push(job_queue_t *queue, const job_t *job)
 {
     if( queue == NULL || job == NULL ) {
@@ -87,6 +93,9 @@ int job_queue_push(job_queue_t *queue, const job_t *job)
     return 0;
 }
 
+///-------------------------------------------
+// Note: Pop a job from the job queue.
+//
 int job_queue_pop(job_queue_t *queue, job_t *job)
 {
     if( queue == NULL || job == NULL ) {
@@ -106,6 +115,9 @@ int job_queue_pop(job_queue_t *queue, job_t *job)
     return 0;
 }
 
+///-------------------------------------------
+// Note: Convert job state to string representation.
+//
 const char* job_state_to_string(job_state_t state)
 {
     switch(state) {
@@ -122,6 +134,9 @@ const char* job_state_to_string(job_state_t state)
     }
 }
 
+///-------------------------------------------
+// Note: Update the scheduler statistics.
+//
 int scheduler_stats_update(shared_scheduler_t *scheduler)
 {
     if( scheduler == NULL ) {
@@ -201,48 +216,6 @@ shared_scheduler_t* shm_scheduler_create()
     }
 
     return scheduler;
-}
-
-//-------------------------------------------
-// Note: Attaches to existing shared memory.
-//       Called by worker processes after fork.
-//
-shared_scheduler_t* shm_scheduler_attach()
-{
-    int fd = shm_open(MINISCHED_JOBQUEUE_SHM_NAME, O_RDWR, 0666);
-    if( fd < 0 ) {
-        log_error("[%s][%s:%d] shm_open error\n",__FILE__,__func__,__LINE__);
-        return NULL;
-    }
-
-    shared_scheduler_t *scheduler = (shared_scheduler_t*)mmap(NULL, sizeof(shared_scheduler_t),
-                                     PROT_READ | PROT_WRITE,
-                                     MAP_SHARED, fd, 0);
-    close(fd);
-
-    if( scheduler == MAP_FAILED ) {
-        log_error("[%s][%s:%d] mmap error\n",__FILE__,__func__,__LINE__);
-        return NULL;
-    }
-
-    return scheduler;
-}
-
-//-------------------------------------------
-// Note: Detaches from shared memory (unmaps).
-//
-int shm_scheduler_detach(shared_scheduler_t *scheduler)
-{
-    if( scheduler == NULL ) {
-        return -1;
-    }
-
-    if( munmap(scheduler, sizeof(shared_scheduler_t)) != 0 ) {
-        log_error("[%s][%s:%d] munmap error\n",__FILE__,__func__,__LINE__);
-        return -1;
-    }
-
-    return 0;
 }
 
 //-------------------------------------------

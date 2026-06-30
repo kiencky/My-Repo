@@ -1,0 +1,133 @@
+---
+title: MiniScheduler - Overall Architecture
+---
+
+graph TB
+    %% ===== USER / CLI =====
+    User([User Terminal])
+
+    subgraph CLIENT ["minisched_client (CLI Process)"]
+        CLI_PARSE[Parse CLI args<br/>add / status / stop]
+        CLI_SEND[Send command via socket]
+        CLI_RECV[Receive & display response]
+    end
+
+    %% ===== IPC =====
+    SOCKET[/Unix Domain Socket<br/>AF_UNIX, SOCK_STREAM<br/>/tmp/minisched.sock/]
+
+    %% ===== DAEMON =====
+    subgraph DAEMON ["minisched_daemon (Parent Process)"]
+        direction TB
+        INIT[Startup<br/>log_path_init<br/>config_load<br/>daemonize<br/>sigaction]
+        SHM_CREATE[shm_scheduler_create<br/>mutex + cond init<br/>PTHREAD_PROCESS_SHARED]
+        FORK[fork_workers x N]
+        ACCEPT_LOOP[Main Loop<br/>accept ¨ recv ¨ handle<br/>¨ send response ¨ close]
+
+        subgraph CMD_HANDLERS ["Command Handlers"]
+            ADD_CMD[ADD<br/>lock ¨ push queue<br/>¨ update history<br/>¨ cond_signal<br/>¨ unlock]
+            STATUS_CMD[STATUS<br/>lock ¨ stats_update<br/>¨ format table<br/>¨ unlock]
+            STOP_CMD[STOP<br/>g_running = 0]
+        end
+
+        SHUTDOWN[Shutdown<br/>lock ¨ shutting_down=1<br/>¨ cond_broadcast ¨ unlock<br/>¨ waitpid all workers<br/>¨ shm_destroy<br/>¨ remove pidfile<br/>¨ unlink socket]
+    end
+
+    %% ===== SHARED MEMORY =====
+    subgraph SHM ["/dev/shm/minisched_job_queue_shm"]
+        direction LR
+        subgraph SCHED_STRUCT ["shared_scheduler_t"]
+            JOB_QUEUE["job_queue_t<br/>„ª„ª„ª„ª„ª„ª„ª„ª„ª„ª„ª„ª<br/>jobs[100] circular buffer<br/>head / tail / size<br/>pthread_mutex_t<br/>pthread_cond_t"]
+            HISTORY["history_jobs[100]<br/>history_jobs_size<br/>next_job_id"]
+            WORKERS_META["worker_pids[8]<br/>num_workers<br/>shutting_down"]
+            STATS["scheduler_stats_t<br/>„ª„ª„ª„ª„ª„ª„ª„ª„ª„ª„ª„ª<br/>total / pending<br/>running / completed<br/>failed"]
+        end
+    end
+
+    %% ===== WORKER PROCESSES =====
+    subgraph WORKER_POOL ["Worker Processes (forked children)"]
+        direction LR
+        W0[Worker 0<br/>PID: ...]
+        W1[Worker 1<br/>PID: ...]
+        W2[Worker 2<br/>PID: ...]
+        W3[Worker 3<br/>PID: ...]
+    end
+
+    subgraph WORKER_LOOP ["Worker Loop (each process)"]
+        direction TB
+        WL_LOCK[mutex_lock]
+        WL_WAIT[cond_wait<br/>until job available<br/>or shutting_down]
+        WL_POP[job_queue_pop]
+        WL_UPDATE1[Update history<br/>state=RUNNING<br/>pid=getpid]
+        WL_UNLOCK1[mutex_unlock]
+        WL_EXEC["system(command)<br/>? Runs OUTSIDE mutex"]
+        WL_LOCK2[mutex_lock]
+        WL_UPDATE2[Update history<br/>state=DONE/FAILED<br/>exit_code]
+        WL_UNLOCK2[mutex_unlock]
+    end
+
+    %% ===== LOG =====
+    LOG_FILE[("Log Files<br/>logs/minisched_*.log<br/>logs/minisched_*_cmd.log<br/>„ª„ª„ª„ª„ª„ª„ª„ª„ª„ª„ª„ª<br/>O_APPEND + dprintf<br/>(atomic, no mutex needed)")]
+
+    LOG_SHM[/Shared Memory<br/>/dev/shm/minisched_log_path_shm<br/>Write-once before fork/]
+
+    %% ===== CONFIG =====
+    CONFIG_FILE[("config/minisched.conf<br/>„ª„ª„ª„ª„ª„ª„ª„ª„ª„ª„ª„ª<br/>socket_path<br/>num_workers")]
+
+    %% ===== CONNECTIONS =====
+    User --> CLI_PARSE
+    CLI_PARSE --> CLI_SEND
+    CLI_SEND -->|"ADD cmd / STATUS / STOP"| SOCKET
+    SOCKET -->|request| ACCEPT_LOOP
+    ACCEPT_LOOP --> ADD_CMD
+    ACCEPT_LOOP --> STATUS_CMD
+    ACCEPT_LOOP --> STOP_CMD
+    ADD_CMD -->|response| SOCKET
+    STATUS_CMD -->|response| SOCKET
+    STOP_CMD -->|response| SOCKET
+    SOCKET -->|response| CLI_RECV
+    CLI_RECV --> User
+
+    INIT --> SHM_CREATE
+    SHM_CREATE --> FORK
+    FORK --> ACCEPT_LOOP
+    STOP_CMD --> SHUTDOWN
+
+    %% SHM connections
+    ADD_CMD -.->|push job| JOB_QUEUE
+    ADD_CMD -.->|record| HISTORY
+    STATUS_CMD -.->|read| HISTORY
+    STATUS_CMD -.->|compute| STATS
+
+    FORK -.->|"fork()"| WORKER_POOL
+    W0 & W1 & W2 & W3 -.->|access| SHM
+
+    %% Worker loop
+    WL_LOCK --> WL_WAIT
+    WL_WAIT --> WL_POP
+    WL_POP --> WL_UPDATE1
+    WL_UPDATE1 --> WL_UNLOCK1
+    WL_UNLOCK1 --> WL_EXEC
+    WL_EXEC --> WL_LOCK2
+    WL_LOCK2 --> WL_UPDATE2
+    WL_UPDATE2 --> WL_UNLOCK2
+
+    %% Log
+    DAEMON -.->|write| LOG_FILE
+    WORKER_POOL -.->|write| LOG_FILE
+    CLIENT -.->|write| LOG_FILE
+    INIT -.->|init| LOG_SHM
+
+    %% Config
+    CONFIG_FILE -.->|load| INIT
+    CONFIG_FILE -.->|load| CLI_PARSE
+
+    %% Styling
+    classDef shm fill:#ffd700,stroke:#333,color:#000
+    classDef process fill:#87ceeb,stroke:#333,color:#000
+    classDef ipc fill:#98fb98,stroke:#333,color:#000
+    classDef file fill:#dda0dd,stroke:#333,color:#000
+
+    class SHM,SCHED_STRUCT,JOB_QUEUE,HISTORY,WORKERS_META,STATS shm
+    class DAEMON,CLIENT,WORKER_POOL,W0,W1,W2,W3 process
+    class SOCKET,LOG_SHM ipc
+    class LOG_FILE,CONFIG_FILE file

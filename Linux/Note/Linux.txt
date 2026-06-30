@@ -1,0 +1,820 @@
+=================LINUX===================
+■ Linux là tên gọi của một kernel (nhân hệ điều hành) để quản lý phần cứng, bộ nhớ, tiến trình... Nó chạy trên bộ nhớ RAM sau khi máy tính khởi động.
+
+■ Hiểu về hệ điều hành Linux
+- Kiến trúc của Linux: Kernel, Shell, Filesystem, Process.
+	+ Kernel là trung tâm của hệ điều hành Linux, quản lý tài nguyên phần cứng, tiến trình, bộ nhớ, thiết bị ngoại vi
+	+ Shell là chương trình giao tiếp giữa người dùng và hệ điều hành bằng dòng lệnh
+	+ Filesystem là cách hệ điều hành tổ chức, quản lý và lưu trữ dữ liệu theo cấu trúc cây thư mục
+	+ Process là tiến trình đang được thực thi trên hệ thống, có PID riêng
+
+- Các bản phân phối phổ biến: Ubuntu, CentOS, Debian, Fedora, v.v.
+
+■ Làm việc với dòng lệnh (Terminal/Bash)
+Dẫn đường trong hệ thống thư mục: ls, cd, pwd
+Quản lý tập tin và thư mục: cp, mv, rm, mkdir, rmdir, touch
+Xem và chỉnh sửa nội dung file: cat, less, more, head, tail, nano, vim
+Tìm kiếm file và nội dung: find, grep
+Quản lý quyền truy cập: chmod, chown, chgrp
+Nén/giải nén file: tar, gzip, zip, unzip
+
+■ Quản lý người dùng và nhóm
+Thêm/xóa/sửa người dùng: useradd, userdel, usermod
+Quản lý nhóm: groupadd, groupdel, groupmod
+Đổi mật khẩu: passwd
+
+■ Quản lý tiến trình (Process)
+Xem tiến trình đang chạy: ps, top, htop, pgrep,...
+	ps -ef
+	ps -o pid,ppid,sid,pgid,tty,cmd -p <pid>
+
+Dừng tiến trình: kill, pkill, killall
+	kill(pid, 0)		: Check existence only
+	kill(pid, SIGTERM) 	: Ask process to terminate
+	kill(pid, SIGKILL) 	: Force kill immediately
+	kill -15 <pid>		: SIGTERM
+	kill -9 <pid>		: SIGKILL
+
+Chạy tiến trình nền: &amp;, nohup, screen, tmux
+
+■ Quản lý dịch vụ (Service)
+Khởi động/dừng/restart dịch vụ: systemctl, service
+Kiểm tra trạng thái dịch vụ: systemctl status
+
+■ Quản lý gói phần mềm (Package Management)
+Debian/Ubuntu: apt-get, apt(advanced package tool), dpkg
+CentOS/Red Hat: yum, dnf, rpm
+Cài đặt, gỡ bỏ, cập nhật phần mềm.
+
+■ Quản lý mạng
+Kiểm tra địa chỉ IP: ifconfig, ip, hostname, nmcli
+Kiểm tra kết nối: ping, traceroute, netstat, ss, curl, wget
+Cấu hình file hosts, DNS, gateway.
+
+■ Quản lý phân quyền và bảo mật cơ bản
+Phân quyền file/folder: quyền đọc, ghi, thực thi cho user, group, others.
+Cấu hình tường lửa cơ bản: ufw, firewalld, iptables
+
+■ Làm việc với SSH và Remote
+Kết nối SSH: ssh
+Copy file qua SSH: scp, rsync
+Thiết lập key SSH
+
+■ Theo dõi hệ thống và log
+Kiểm tra dung lượng ổ đĩa: df, du
+Kiểm tra tài nguyên hệ thống: free, top, htop
+Xem log hệ thống: tail -f /var/log/syslog hoặc các file log khác.
+
+■ Scripting cơ bản với Bash
+Viết script bash đơn giản: biến, vòng lặp, điều kiện.
+Thiết lập quyền thực thi cho script.
+
+■ Library
+	stdio.h 		— Standard buffered I/O 		(printf, fprintf, snprintf, fopen, fgets).
+	sys/stat.h 		— File metadata/permissions 	(stat, chmod, umask, mode bits).
+	stdarg.h 		— Variadic function support 	(va_list, va_start, va_end) for custom loggers.
+	signal.h 		— Signal APIs 					(sigaction, kill, sigprocmask, signal constants).
+	errno.h 		— Error mechanism 				(errno, EINTR, ENOENT, EACCES, etc.).
+	string.h 		— C string + memory helpers 	(strerror, strlen, memset, strncpy).
+	stdlib.h 		— Utility/runtime 				(malloc/free, atoi/strtol, exit, getenv).
+	unistd.h 		— POSIX syscall layer 			(read/write/close, fork, exec, getpid, chdir).
+	fcntl.h			— File control + flags 			(open, O_CREAT, O_TRUNC, O_NONBLOCK).
+	sys/types.h 	— Common POSIX types 			(pid_t, ssize_t, off_t).
+	sys/socket.h 	— Socket APIs 					(socket, bind, listen, accept, connect).
+	sys/un.h 		— Unix domain socket address 	(sockaddr_un) for local IPC.
+	pthread.h 		— Threads + sync 				(pthread_create, mutex, condition variable).
+	sys/stat.h 		— File modes/metadata 			(umask, permissions for pid/log/socket files).
+
+■ Note:
+ ● Some common I/O function:
+ ・ Standard I/O
+	int printf(const char *format, ...);                    				// Print to stdout
+	int fprintf(FILE *stream, const char *format, ...);     				// Print to file/stream
+	int sprintf(char *buffer, const char *format, ...);     				// Print to string (unsafe - no size limit)
+	int snprintf(char *buffer, size_t size, const char *format, ...);		// Print to string safely
+
+ ・ File Operations
+	FILE *fopen(const char *filename, const char *mode);    				// Open file (mode: "r", "w", "a", etc.)
+	int fclose(FILE *stream);                               				// Close file
+	int fread(void *ptr, size_t size, size_t count, FILE *stream);    		// Read from file
+	int fwrite(const void *ptr, size_t size, size_t count, FILE *stream);   // Write to file
+	int fgetc(FILE *stream);                                				// Read single char from file
+	int fputc(int c, FILE *stream);                         				// Write single char to file
+	char *fgets(char *str, int n, FILE *stream);            				// Read line from file
+	int fputs(const char *str, FILE *stream);               				// Write string to file
+
+ ・ Standard Input
+	int scanf(const char *format, ...);                     				// Read from stdin
+	int fscanf(FILE *stream, const char *format, ...);      				// Read from file
+	int sscanf(const char *str, const char *format, ...);   				// Read from string
+
+ ・ Error Handling
+	void perror(const char *prefix);                        				// Print system error message to stderr
+	int ferror(FILE *stream);                               				// Check file error status
+	void clearerr(FILE *stream);                            				// Clear file error flag
+				
+ ・ File Position				
+	int fseek(FILE *stream, long offset, int whence);       				// Seek to position in file
+	long ftell(FILE *stream);                               				// Get current file position
+	void rewind(FILE *stream);                              				// Rewind file pointer to start
+
+ ● fprintf(stderr, "msg"): write msg to the stderr stream, show msg to the terminal(if not redirect(2>))
+ 	2> error.txt: redirect stderr(2) stream to error.txt file
+	
+ ● perror("msg"): automatically add the string description of errno to the msg then write msg to the stderr stream. It also shows the msg to the terminal as default.
+	It is equivalent to fprintf(stderr, "msg: ", strerror(errno))
+	
+ ● errno:
+	ENOENT   // No such file or directory
+	EACCES   // Permission denied
+	EEXIST   // File already exists
+	ENOSPC   // No space left on device
+	ESRCH    // No such process
+	EPERM    // Operation not permitted
+	ENOMEM   // Not enough memory
+	EMFILE   // Too many open files (per process)
+	ENFILE   // Too many open files (system-wide)
+
+ ● Daemon, Client, CLI
+	Daemon là process chạy nền xử lý công việc.
+	Client là chương trình (thường chạy trong terminal) nhận lệnh từ người dùng qua CLI và giao tiếp với daemon.
+	CLI là cách người dùng giao tiếp với chương trình bằng lệnh trên terminal.
+
+ ● sig_atomic_t giúp:
+	1. Signal xảy ra bất kỳ lúc nào nhưng không gián đoạn 1 instruction atomic đang chạy
+	2. Sau khi instruction này hoàn thành → signal handler được xử lý
+	
+ ● static volatile sig_atomic_t signal_flag = 1;
+	volatile để tránh complier tối ưu hóa, giúp đọc/ghi giá trị ở memory thay vì ở register cache. (Signal handler xử lý ở mức OS sẽ thay đổi giá trị ở memory nên chương trình cần đọc/ghi ở memory thay vì cache).
+	sig_atomic_t để xử lý đọc/ghi ở mức nhỏ nhất, đảm bảo đọc/ghi trọn vẹn không bị gián đoạn, tránh data bị cắt xén, race condition.
+
+ ● signal(SIGINT, handle_signal);
+	Khi signal SIGINT xảy ra, hàm handle_signal sẽ được gọi thay vì xử lý default signal
+
+=================LINUX ROADMAP===================
+1. Làm quen Linux
+ - Shell cơ bản: pwd, ls, cd, mkdir, rm, cp, mv
+ - Làm việc với file code: cat, less, head, tail, grep
+ - Editor: vim, nano
+ - Compile:	● C			: gcc main.c -o main
+ 			● C++		: g++ main.cpp -o main
+ 			● Cross-compile (toolchain ARM): arm-linux-gnueabihf-gcc main.c -o main
+ 
+2. Linux File system
+2.1. Filesystem: cách hệ điều hành tổ chức, quản lý dữ liệu trên HDD, SSD, eMMC, SD card, USB…
+ - Một số thư mục chuẩn quan trọng:
+	● /bin và /usr/bin			: chứa các binary chương trình cơ bản (/bin/sh, /bin/ls, /bin/cp, /usr/bin/grep, /usr/bin/gcc,...)
+	● /sbin và /usr/sbin		: chứa binary cho system admin (ifconfig, fdisk, mount, iptables,...)
+	● /lib, /usr/lib, /lib64	: chứa thư viện dùng chung (*.so)
+	● /etc						: chứa file cấu hình hệ thống (/etc/passwd, /etc/group, /etc/fstab, /etc/network/interfaces,...)
+	● /home						: chứa home folder của user
+	● /root						: home folder của user root
+	● /tmp						: thư mục file tạm thời, thường bị xóa khi reboot
+	● /var						: chứa data thay đổi theo thời gian (/var/log, /var/spool, /var/run,...)
+	● /dev						: chứa device file do kernel tạo, app user-space giao tiếp với thiết bị qua file trong /dev
+	● /proc						: pseudo filesystem ảo, thường dùng để xem thông tin hệ thống và debug, chứa:
+		・ Thông tin CPU, memory	: /proc/cpuinfo, /proc/meminfo, /proc/uptime
+		・ Thông tin process 	: /proc/<pid>/status, /proc/<pid>/maps, /proc/<pid>/fd/
+	● /sys						: là pseudo filesystem, do kernel expose device, driver, thuộc tính kernel. Điều khiển thiết bị bằng cách open + write vào các file này
+	● /mnt, /media				: nơi mount tạm filesystem khác như USB, thẻ SD, NFS,... (/mnt/usb, /media/usb)
+
+ - User, group, permission (rwx)
+	-rwxr-xr-- 1 kien dev 12345 May 22 10:00 myapp
+		・ - 			: loại file (- = file, d = dir, l = symlink)
+		・ rwx (owner)	: quyền cho user kien
+		・ r-x (group)	: quyền cho group dev
+		・ r-- (others)	: quyền cho những user còn lại
+		・ 1				: số lượng hardlink đến file
+		・ kien 			: owner
+		・ dev 			: group
+		・ 12345			: kích thước file
+
+2.2. Lập trình thao tác với file (POSIX)
+ - POSIX: Là 1 bộ tiêu chuẩn định nghĩa API và hành vi cho hệ điều hành Unix đảm bảo mã code có thể chạy trên hệ điều hành khác cùng dùng chuẩn POSIX.
+
+ - open:
+	● Prototype: int open(const char *pathname, int flags, ... /* mode_t mode */);
+		・ Return: 
+			>= 0 : file descriptor (fd).
+			-1   : lỗi (xem errno).
+		・ Flag thường dùng ( kết hợp bằng | )
+			O_RDONLY 	– chỉ đọc.
+			O_WRONLY 	– chỉ ghi.
+			O_RDWR 		– đọc/ghi.
+			O_CREAT 	– tạo file nếu chưa tồn tại (cần tham số mode).
+			O_TRUNC 	– nếu file tồn tại, xóa sạch nội dung cũ.
+			O_APPEND 	– ghi luôn vào cuối file.
+			O_NONBLOCK 	– non-blocking I/O (socket, device).
+			O_EXCL 		– kết hợp với O_CREAT để “tạo mới, lỗi nếu đã tồn tại”.
+		・ mode:
+			0644 		→ Owner có quyền đọc/ghi, group và others chỉ có quyền đọc.
+			0666 		→ Tất cả đều có quyền đọc/ghi.
+			0755 		→ Owner có quyền đọc/ghi/chạy, group và others có quyền đọc/chạy.
+			
+	● Ex:
+		// int fd = open("output.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+		// if (fd < 0) {
+		//     perror("open");
+		//     return -1;
+		// }
+
+- close:
+	● Prototype: int close(int fd);
+		・ Return: 
+			0 	: OK
+			-1  : lỗi
+		・ Mọi open() thành công phải có close() để tránh rò rỉ fd.
+
+- read:
+	● Prototype: ssize_t read(int fd, void *buf, size_t count);
+		・ Đọc tối đa count byte từ fd vào buf.
+		・ Return: 
+			> 0 : số byte thực sự đọc được.
+			0  	: EOF (hết file).
+			-1	: lỗi
+		・ Không đảm bảo đọc đủ count byte trong một lần gọi (đặc biệt với socket/pipe).
+
+- write:
+	● Prototype: ssize_t write(int fd, const void *buf, size_t count);
+		・ Ghi tối đa count byte từ buf ra fd.
+		・ Return: 
+			>= 0 : số byte thực sự ghi được.
+			-1	: lỗi
+		・ Có thể ghi ít hơn count byte (cần vòng lặp để ghi hết trong trường hợp nghiêm túc).
+
+- lseek:
+	● Prototype: off_t lseek(int fd, off_t offset, int whence);
+		・ Thay đổi vị trí con trỏ file (file offset) của fd.
+		・ Return: 
+			>= 0 : vị trí mới tính từ đầu file
+			-1	: lỗi
+		・ whence:
+			SEEK_SET	: tính từ đầu file.
+			SEEK_CUR	: tính từ vị trí hiện tại.
+			SEEK_END	: tính từ cuối file.
+
+- stat, fstat, lstat: lấy thông tin file
+	● Prototype:
+		int stat(const char *pathname, struct stat *statbuf);
+		int fstat(int fd, struct stat *statbuf);
+		int lstat(const char *pathname, struct stat *statbuf);
+		
+		・ stat : theo path, nếu path là symlink thì lấy info file đích.
+		・ lstat: theo path, không follow symlink (lấy info bản thân symlink).
+		・ fstat: theo file descriptor.
+		
+- opendir, readdir, closedir: thao tác với thư mục
+	● Prototype:
+		DIR *opendir(const char *name);
+		struct dirent *readdir(DIR *dirp);
+		int closedir(DIR *dirp);
+		
+- Error handling:
+	・ Mọi hàm open, read, write, lseek, stat, opendir,... nếu lỗi sẽ trả về giá trị âm hoặc NULL
+	・ errno chứa mã lỗi (global).
+	・ perror("msg") để in lỗi "msg: <mô tả lỗi>".
+	・ Một số errno hay gặp:
+		ENOENT – file/đường dẫn không tồn tại.
+		EACCES – không đủ quyền.
+		EBUSY, EAGAIN, EINVAL – gặp dần sẽ quen.
+
+- So sánh syscall POSIX và stdio( fopen, fclose,...)
+	● POSIX
+		・ Làm việc trực tiếp với kernel thông qua system call
+		・ Kiểm soát chi tiết, hiệu năng cao và portable
+	● stdio
+		・ Đơn giản, dễ dùng
+		・ Được triển khai dựa trên POSIX
+
+3. Process
+- Là tiến trình đang chạy trong hệ điều hành có không gian địa chỉ riêng
+
+3.1. Tạo process
+	● pid_t fork(void);
+		・ Tạo 1 process con từ process cha, process con là bản copy gần như y hệt cha (code, dữ liệu, fd…) 
+		・ Sau khi gọi fork(), cả process cha và con đều chạy từ vị trí sau lệnh fork()
+		・ Return:
+			Trong process con	: 0
+			Trong process cha	: PID của process con
+			Nếu lỗi				: trả về -1
+	
+	● exec()
+		・ Dùng để thay thế nội dung của process hiện tại bằng một chương trình mới.
+		・ Thường được gọi trong process con sau fork()
+		・ Prototype:
+			int execl(const char *path, const char *arg0, ..., (char *)0);
+			int execlp(const char *file, const char *arg0, ..., (char *)0);
+		・ Return:
+			Nếu exec thành công, không quay lại dòng sau exec.
+			Nếu lỗi → trả về -1.
+	
+3.2. Hủy process
+	● exit(0)
+		・ Hàm thư viện C (trong <stdlib.h>).
+		・ Thực hiện cleanup sau đó gọi _exit() để thực sự thoát khỏi process
+		・ Safe trong process không folk()
+
+	● _exit(0)
+		・ System call cấp thấp (trong <unistd.h>).
+		・ Khi gọi sẽ thoát ngay lập tức khỏi process mà không cleanup.
+		・ Thường dùng trong process con sau khi gọi fork() để tránh flush buffer hai lần (cha và con cùng flush → in trùng dữ liệu)
+		・ Safe cho process con sau khi gọi folk()
+	
+3.3. wait()/waitpid()
+ - Được process cha gọi để chờ process con kết thúc.
+ - Khi process con gọi exit() hoặc _exit(), nó sẽ chuyển sang trạng thái zombie cho đến khi cha gọi wait().
+ - Giúp process cha thu thập exit status của process con đồng thời xóa entry trong bảng process → tránh zombie.
+ 
+	● Prototype:
+		pid_t wait(int *wstatus);
+		pid_t waitpid(pid_t pid, int *wstatus, int options);
+
+3.4. setsid()
+ - Tạo session mới chứa process hiện tại, có ID = PID của process
+ - Process hiện tại thành process leader, group leader
+ - Tách process khỏi TTY (Controlling terminal), không bị ảnh hưởng bởi Ctrl+C, Ctrl+Z để chạy nền
+ 
+3.5. Zombie process
+ - Là khi process con đã kết thúc (đã exit), nhưng process cha chưa gọi wait()/waitpid() để đọc exit status.
+ - Process con không còn chạy nữa nhưng vẫn chiếm entry trong bảng PID, gây cạn PID -> không tạo được PID mới.
+ 
+3.5. Example
+
+||	#include <stdio.h>
+||	#include <stdlib.h>
+||	#include <unistd.h>
+||	#include <sys/types.h>
+||	#include <sys/wait.h>
+||	
+||	int main(void) {
+||	    pid_t pid = fork();   // Create a new process.
+||	
+||	    if (pid < 0) {
+||	        // fork failed.
+||	        perror("fork");
+||	        return 1;
+||	    }
+||	    else if (pid == 0) {
+||	        // ===== Child process =====
+||	        printf("Child: PID = %d, PPID = %d\n", getpid(), getppid());
+||	
+||	        // Use exec to run another program (ls)
+||	        execl("/bin/ls", "ls", "-l", (char *)NULL);
+||	
+||	        // Only reached if exec fails
+||	        perror("execl");
+||	        _exit(1);     // use _exit in the child
+||	    }
+||	    else {
+||	        // ===== Parent process =====
+||	        printf("Parent: PID = %d, child PID = %d\n", getpid(), pid);
+||	
+||	        int status;
+||	        // Wait for the child process to finish -> avoid zombie
+||	        pid_t w = waitpid(pid, &status, 0);
+||	        if (w == -1) {
+||	            perror("waitpid");
+||	        } else {
+||	            if (WIFEXITED(status)) {
+||	                printf("Parent: child %d exited with code %d\n",
+||	                       w, WEXITSTATUS(status));
+||	            } else if (WIFSIGNALED(status)) {
+||	                printf("Parent: child %d killed by signal %d\n",
+||	                       w, WTERMSIG(status));
+||	            }
+||	        }
+||	        printf("Parent: done\n");
+||	    }
+||		
+||	    return 0;
+||	}
+
+4. Multi-Threading
+- Thread là đơn vị thực thi nhỏ nhất trong process. Chúng chia sẽ không gian bộ nhớ với nhau.
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+4.1. Bộ lập lịch (Scheduler)
+- Dùng để quyết định thread nào được chạy tại 1 thời điểm. Phân bổ CPU giữa các thread/process
+- Cách hoạt động:
+	・ Thread khi tạo ra được đưa vào hàng đợi
+	・ Scheduler chọn thread từ hàng đợi để chạy trên CPU
+	・ Khi hết time slice ( thời gian CPU cấp cho thread), Scheduler chuyển CPU sang thread khác
+	
+- Các thuật toán lập lịch: Round Robin, Priority Scheduling, Multilevel Queue, CFS,...
+
+4.2. Sử dụng multi-threading
+● pthread_create: Tạo thread
+	- Prototype: 
+		int pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void *), void *arg);
+		
+		・ thread: biến để nhận ID của thread mới.
+		・ attr: thuộc tính (thường dùng NULL = mặc định).
+		・ start_routine: hàm thread chạy.
+		・ arg: con trỏ truyền dữ liệu vào thread.
+
+● pthread_join
+	- Đợi 1 thread khác kết thúc và lấy giá trị trả về
+	- Prototype:
+		int pthread_join(pthread_t thread, void **retval);
+
+● pthread_detach
+	- Để 1 thread làm việc độc lập và tự kết thúc.
+	- Sau khi detach thì không thể join nữa. Khi thread tự kết thúc, OS sẽ tự thu hồi tài nguyên.
+	- Prototype:
+		int pthread_detach(pthread_t thread);
+
+● pthread_mutex_t (Mutex)
+	- Cơ chế để đảm bảo chỉ 1 thread được truy cập tài nguyên tại cùng 1 thời điểm tránh tình trạng race condition.
+	- Prototype:
+	● Internal process:
+		pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;									// Khởi tạo mutex.
+		int pthread_mutex_init(pthread_mutex_t *mutex, const pthread_mutexattr_t *attr);	// Initialize mutex object. attr = NULL for default attributes.
+		int pthread_mutex_lock(pthread_mutex_t *mutex);										// Lock mutex (blocks if already locked by another thread).
+		int pthread_mutex_unlock(pthread_mutex_t *mutex);									// Unlock mutex to allow other threads to acquire it.
+		int pthread_mutex_destroy(pthread_mutex_t *mutex);									// Destroy mutex and release related resources.
+		
+	● Multiple processes:
+		pthread_mutexattr_t mattr;                                          // Declare attribute object (settings container).
+		pthread_mutexattr_init(&mattr);                                     // Initialize attribute object with default values.
+		pthread_mutexattr_setpshared(&mattr, PTHREAD_PROCESS_SHARED);       // Allow mutex to work across different processes.
+		pthread_mutexattr_setrobust(&mattr, PTHREAD_MUTEX_ROBUST);          // Make mutex recoverable if owning process crashes.
+		pthread_mutex_init(&queue->mutex, &mattr);                          // Create the mutex using the configured attributes.
+		pthread_mutexattr_destroy(&mattr);                                  // Free attribute object (mutex already has the settings).
+		pthread_mutex_lock(&queue->mutex);                                  // Acquire the lock (blocks if held by another process/thread).
+		pthread_mutex_unlock(&queue->mutex);                                // Release the lock so others can acquire it.
+		pthread_mutex_destroy(&queue->mutex);                               // Destroy the mutex and free its resources.
+
+	- Dùng lock và unlock khi truy cập tài nguyên chung. Dùng destroy khi không dùng nữa để tránh rò rỉ tài nguyên
+
+● pthread_cond_t (Condition Variable)
+	- Cơ chế cho phép thread chờ một điều kiện và được đánh thức khi điều kiện xảy ra.
+	- Prototype:
+		pthread_cond_t cond = PTHREAD_COND_INITIALIZER;										// Khởi tạo.
+		int pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr);		// Khởi tạo condition variable bằng hàm; attr = NULL để dùng thuộc tính mặc định.
+		int pthread_cond_destroy(pthread_cond_t *cond);										// Hủy condition variable, giải phóng tài nguyên liên quan.
+		int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex);				// Chờ tín hiệu trên cond: tự động unlock mutex khi chờ, và lock lại mutex trước khi return hàm pthread_cond_wait.
+		int pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex, const struct timespec *abstime);		// Chờ tín hiệu có timeout tuyệt đối abstime; timeout thì trả về ETIMEDOUT
+		int pthread_cond_signal(pthread_cond_t *cond);										// Đánh thức 1 thread đang chờ trên cond (nếu có).
+		int pthread_cond_broadcast(pthread_cond_t *cond);									// Đánh thức tất cả thread đang chờ trên cond.
+
+● Producer - Consumer
+	- Là cơ chế phối hợp giữa luồng sản xuất và luồng tiêu thụ dữ liệu. Dùng mutex để tránh race condition, dùng condition để chờ/báo hiệu khi buffer đầy hoặc rỗng.
+	- Tránh:
+		・ Producer ghi vào khi buffer đầy.
+		・ Consumer đọc khi buffer rỗng
+
+● pthread_exit
+	- Dùng để kết thúc thread, trả về giá trị cho thread khác.
+	- Nếu main thread gọi pthread_exit(), process vẫn tiếp tục chạy cho đến khi tất cả thread khác kết thúc.
+	- Prototype:
+		void pthread_exit(void *retval);
+
+● Example
+
+||	#include <pthread.h>
+||	#include <stdio.h>
+||	#include <stdlib.h>
+||	#include <unistd.h>
+||
+||	// Biến chung và đồng bộ
+||	int data_ready = 0;
+||	int data_value = 0;
+||	pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+||	pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+||
+||	// Producer: tạo dữ liệu rồi báo cho consumer
+||	void *producer(void *arg) {
+||		pthread_mutex_lock(&lock);
+||		data_value = 123;
+||		data_ready = 1;
+||		printf("[Producer] Tạo data = %d, gửi signal\n", data_value);
+||		pthread_cond_signal(&cond);     // báo cho consumer
+||		pthread_mutex_unlock(&lock);
+||		return NULL;
+||	}
+||
+||	// Consumer: chờ tới khi có dữ liệu
+||	void *consumer(void *arg) {
+||		pthread_mutex_lock(&lock);
+||		while (!data_ready) {           // tránh đọc khi chưa có data
+||			printf("[Consumer] Chưa có data, chờ...\n");
+||			pthread_cond_wait(&cond, &lock);
+||		}
+||		printf("[Consumer] Nhận data = %d\n", data_value);
+||		pthread_mutex_unlock(&lock);
+||		return NULL;
+||	}
+||
+||	// Logger: detached thread, chỉ in trạng thái rồi tự thoát
+||	void *logger(void *arg) {
+||		pthread_detach(pthread_self()); // tự detach chính mình
+||		printf("[Logger] Đang chạy (detached)\n");
+||		sleep(1);
+||		printf("[Logger] Kết thúc\n");
+||		return NULL;
+||	}
+||
+||	int main() {
+||		pthread_t t_prod, t_cons, t_log;
+||
+||		// Tạo producer và consumer
+||		pthread_create(&t_prod, NULL, producer, NULL);
+||		pthread_create(&t_cons, NULL, consumer, NULL);
+||
+||		// Tạo logger (sẽ detach trong chính thread đó)
+||		pthread_create(&t_log, NULL, logger, NULL);
+||
+||		// Join producer và consumer (chờ 2 thread này xong)
+||		pthread_join(t_prod, NULL);
+||		pthread_join(t_cons, NULL);
+||
+||		printf("[Main] Producer và Consumer đã xong, gọi pthread_exit\n");
+||		// Kết thúc main thread nhưng process còn, cho logger chạy xong
+||		pthread_exit(NULL);
+||	}
+
+4.2. Race condition / Deadlock
+● Race condition:
+	- Xảy ra khi nhiều thread cùng truy cập và thay đổi dữ liệu chung mà không đồng bộ.
+	- Cách xử lý: Dùng mutex, biến atomic (std::atomic trong C++, atomic_* trong C).
+	- Ex:
+||		int counter = 0;
+||
+||		void *worker(void *arg) {
+||			 for (int i = 0; i < 1000000; ++i)
+||				 counter++;   // không an toàn
+||			 return NULL;
+||		}
+
+● Dead lock:
+	- Xảy ra khi nhiều thread cùng chờ tài nguyên của nhau, không thể thực hiện tiếp được (xảy ra khi sử dụng mutex không hợp lý).
+	- Cách xử lý: Quy định thứ tự khóa (ví dụ: luôn lock m1 trước m2 trong mọi thread) để tránh vòng chờ. Hoặc dùng pthread_mutex_trylock
+	- Ex:
+||		pthread_mutex_t m1 = PTHREAD_MUTEX_INITIALIZER;
+||		pthread_mutex_t m2 = PTHREAD_MUTEX_INITIALIZER;
+||		void* threadA(void* arg) {
+||			pthread_mutex_lock(&m1);
+||			pthread_mutex_lock(&m2); // chờ m2
+||			pthread_mutex_unlock(&m2);
+||			pthread_mutex_unlock(&m1);
+||			return NULL;
+||		}
+||
+||		void* threadB(void* arg) {
+||			pthread_mutex_lock(&m2);
+||			pthread_mutex_lock(&m1); // chờ m1
+||			pthread_mutex_unlock(&m1);
+||			pthread_mutex_unlock(&m2);
+||			return NULL;
+||		}
+||
+||		int main() {
+||			pthread_t t1, t2;
+||			pthread_create(&t1, NULL, threadA, NULL);
+||			pthread_create(&t2, NULL, threadB, NULL);
+||
+||			pthread_join(t1, NULL);
+||			pthread_join(t2, NULL);
+||			return 0;
+||		}
+
+4.3. So sánh Semaphore và Mutex
+- Mutex: thường dùng trong multithreading, chỉ cho một thread truy cập tại một thời điểm.
+- Semaphore: linh hoạt hơn, có thể cho nhiều thread/process cùng truy cập tại một thời điểm nhưng giới hạn số lượng (ví dụ: tối đa 3 thread cùng lúc).
+
+5. IPC (Inter Processing Comunication)
+ - Là cơ chế để các process có thể giao tiếp được với nhau.
+ - Vì mỗi tiến trình có không gian địa chỉ riêng, chúng không thể trực tiếp đọc/ghi dữ liệu của nhau → cần dùng cơ chế IPC để phối hợp.
+
+5.1. Các phương pháp IPC phổ biến:
+● Pipe:
+	- Cho phép truyền dữ liệu một chiều giữa các process có quan hệ cha–con.
+	- Dạng “stream” một chiều: process A ghi, process B đọc.
+	- Ví dụ: ls | grep txt chính là pipe giữa 2 process.
+● FIFO:
+	- Giống pipe nhưng có “tên” trong filesystem → các process không cần quan hệ cha–con vẫn dùng chung được.
+	- Tạo bằng mkfifo, rồi open/read/write như file.
+● Message Queue
+	- Hệ điều hành quản lý hàng đợi message.
+	- Mỗi message có type, process gửi/nhận dựa trên type.
+	- Ưu điểm: hỗ trợ bất đồng bộ, tách biệt, có thứ tự, có ưu tiên.
+● Shared Memory (POSIX API)
+	- Nhanh nhất vì các process cùng đọc/ghi vào một vùng memory chung, không cần copy dữ liệu.
+	- Nhưng: dễ bị race condition nếu không đồng bộ đúng cách.
+	- Thường kết hợp với semaphore / mutex để bảo vệ.
+ - Shared memory IPC lưu trữ data trong RAM do kernel quản lý, Các process dùng mmap để ánh xạ vùng data memory đó vào virtual address space của mình để truy cập.
+ - Shared memory khác với pipe vì không cần copy data nên nhanh nhất trong các IPC
+ 
+● Semaphore
+	- Không truyền dữ liệu, mà dùng để đồng bộ hóa việc truy cập tài nguyên chung.
+	- Semaphore cho phép nhiều tiến trình cùng truy cập giới hạn, mutex chỉ cho một tiến trình tại một thời điểm.
+	- Có thể dùng để:
+		・ Bảo vệ vùng critical section (giả lập mutex).
+		・ Giới hạn số process/consumer được vào một tài nguyên.
+● Signal
+	- Cơ chế thông báo bất đồng bộ từ hệ điều hành đến tiến trình.
+	- Ví dụ: SIGINT (Ctrl+C), SIGKILL, SIGTERM, SIGUSR1, SIGUSR2…
+	- Process có thể đăng ký handler để xử lý signal (trừ một số signal đặc biệt).
+	- Dùng để:
+	- Thông báo sự kiện (ví dụ: child kết thúc gửi SIGCHLD).
+	- Điều khiển process (pause, resume, shutdown…).
+● Socket
+	- Dùng để giao tiếp giữa tiến trình trên cùng máy (UNIX domain socket) hoặc qua mạng (TCP/UDP socket) trong mô hình client–server.
+	- Mô hình client–server: socket(), bind(), listen(), accept(), connect(), send(), recv()…
+	
+	・ Internet socket (AF_INET, AF_INET6)
+		→ Dùng cho giao tiếp qua mạng (TCP/UDP).
+		→ Ví dụ: client–server qua IP/port.
+		
+	・ Unix domain socket (AF_UNIX hoặc AF_LOCAL)
+		→ Dùng cho giao tiếp nội bộ giữa các tiến trình trên cùng máy.
+		→ Địa chỉ socket là một file path (ví dụ: /tmp/mysocket).
+		→ Nhanh hơn TCP/UDP vì không phải đi qua stack mạng.
+
+ - Ex:
+	・ Server
+||		// Tạo socket kiểu Unix domain, dạng stream (giống TCP nhưng nội bộ)
+||		int s = socket(AF_UNIX, SOCK_STREAM, 0);
+||
+||		// Cấu trúc địa chỉ cho Unix socket
+||		struct sockaddr_un addr;
+||		addr.sun_family = AF_UNIX;
+||		strcpy(addr.sun_path, PATH);
+||
+||		// Xóa file socket cũ nếu tồn tại để tránh lỗi "Address already in use"
+||		unlink(PATH);
+||
+||		// Gắn socket vào file path
+||		bind(s, (struct sockaddr*)&addr, sizeof(addr));
+||
+||		// Đặt socket vào chế độ lắng nghe, 5 là số kết nối chờ tối đa trong hàng đợi
+||		listen(s, 5);
+||
+||		// Chờ và chấp nhận kết nối từ client
+||		int c = accept(s, NULL, NULL);
+||
+||		// Nhận dữ liệu từ client
+||		char buf[100];
+||		read(c, buf, sizeof(buf));
+||		printf("Server nhận: %s\n", buf);
+||
+||		// Trả lời client
+||		write(c, "OK\n", 3);
+||
+||		// Đóng socket và xóa file
+||		close(c);
+||		close(s);
+||		unlink(PATH);
+
+	・ Client
+||		// Tạo socket kiểu Unix domain
+||		int c = socket(AF_UNIX, SOCK_STREAM, 0);
+||
+||		// Cấu trúc địa chỉ giống server
+||		struct sockaddr_un addr;
+||		addr.sun_family = AF_UNIX;
+||		strcpy(addr.sun_path, PATH);
+||
+||		// Kết nối tới server qua file socket
+||		connect(c, (struct sockaddr*)&addr, sizeof(addr));
+||
+||		// Gửi dữ liệu tới server
+||		char *msg = "Hello server";
+||		write(c, msg, strlen(msg));
+||
+||		// Nhận phản hồi từ server
+||		char buf[100];
+||		read(c, buf, sizeof(buf));
+||		printf("Client nhận: %s\n", buf);
+||
+||		close(c);
+
+5.2. Race Condition trong IPC
+ - Xảy ra khi nhiều process cùng truy cập/ghi một tài nguyên chung mà không đồng bộ.
+ - Cách xử lý:
+	・ Dùng mutex/semaphore để đảm bảo chỉ một tiến trình truy cập tại một thời điểm.
+	・ Dùng condition variables để tiến trình chờ khi dữ liệu chưa sẵn sàng.
+	・ Thiết kế giao thức IPC rõ ràng để tránh xung đột.
+
+6. Shared Memory
+6.1. Virtual memory & paging
+● Virtual Memory:
+ - Mỗi tiến trình được hệ điều hành cấp một không gian địa chỉ ảo riêng (virtual address space).
+ - Khi truy cập một địa chỉ ảo, hệ điều hành + MMU (Memory Management Unit) sẽ ánh xạ (map) địa chỉ ảo → địa chỉ vật lý (RAM), thông qua page table.
+ - Flow:
+ 	・ Lúc compile time, biến được lưu trong virtual address space(stack/heap/data/bss)
+ 	・ Khi truy cập biến trong runtime, MMU dùng page table để dịch page chứa biến đó trong virtual address space sang frame vật lý của RAM (1 page tương ứng 1 frame, thường 4KB)
+ 	・ Nếu RAM đầy, OS sẽ chọn 1 page ít dùng để swap nội dung page đó từ frame sang disk, rồi nạp page mới vào frame đó.
+	
+● Paging (Phân trang):
+ - Hệ điều hành chia bộ nhớ thành các khối nhỏ gọi là page (trong virtual memory) và frame (trong physical memory) có cùng kích thước (thường 4KB).
+ - Lợi ích:
+	・ Mỗi process có không gian riêng, tránh đè bộ nhớ lẫn nhau.
+
+● Lợi ích:
+ - Mỗi process có không gian bộ nhớ riêng giúp bảo vệ tiến trình (không đọc/ghi nhầm bộ nhớ của nhau).
+ - Hỗ trợ shared memory bằng cách cho nhiều process dùng chung frame vật lý.
+ - Hỗ trợ swap sang ổ cứng khi RAM thiếu.
+
+6.2. Shared Memory
+ - Shared Memory là một cơ chế (IPC) cho phép nhiều tiến trình cùng truy cập đến 1 vùng dữ liệu được lưu trong bộ nhớ vật lý.
+ - Nguyên lý: Hệ điều hành tạo một vùng frame rồi ánh xạ vùng physical frame đó vào không gian địa chỉ ảo của nhiều tiến trình.
+ 
+ ● Shared memory(System V) Implement:
+	・ shmget()      : create/get shared memory segment
+					  int shmid = shmget(key, SIZE, IPC_CREAT | 0666);
+
+	・ shmat()       : attach segment into process address space
+					  void *ptr = shmat(shmid, NULL, 0);
+
+	・ access data   : read/write directly via pointer
+					  strcpy(ptr, "Hello");
+
+	・ shmdt()       : detach shared memory from process
+					  shmdt(ptr);
+
+	・ shmctl()      : control / delete shared memory
+					  shmctl(shmid, IPC_RMID, NULL);
+				  
+ ● Shared memory(POSIX) Implement:
+	・ shm_open()    : create/open shared memory object
+					  int fd = shm_open("/myshm", O_CREAT | O_RDWR, 0666);
+					  
+	・ ftruncate()   : set size (creator only)
+					  ftruncate(fd, SIZE);
+					  
+	・ mmap()        : map into process address space. Read/write via pointer
+					  void *ptr = mmap(NULL, SIZE,
+					  			 PROT_READ | PROT_WRITE,
+					  			 MAP_SHARED,
+					  			 fd, 0);
+								 
+	・ munmap()      : unmap when done
+					  munmap(ptr, SIZE);
+					  
+	・ close()       : close file descriptor
+	
+	・ shm_unlink()  : remove shared memory object (when no longer using)
+					  shm_unlink("/myshm");
+
+--WRITER--
+||
+||	int fd = shm_open("/myshm", O_CREAT | O_RDWR, 0666);
+||	ftruncate(fd, 1024);
+||	
+||	char *ptr = mmap(NULL, 1024,
+||	                 PROT_READ | PROT_WRITE,
+||	                 MAP_SHARED,
+||	                 fd, 0);
+||	
+||	strcpy(ptr, "Hello shared memory");
+||	
+||	munmap(ptr, 1024);
+||	close(fd);
+
+--READER--
+||	int fd = shm_open("/myshm", O_RDONLY, 0666);
+||	
+||	char *ptr = mmap(NULL, 1024,
+||	                 PROT_READ,
+||	                 MAP_SHARED,
+||	                 fd, 0);
+||	
+||	printf("%s\n", ptr);
+||	
+||	munmap(ptr, 1024);
+||	close(fd);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

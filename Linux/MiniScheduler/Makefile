@@ -3,9 +3,9 @@
 #=================================================
 
 # Compiler and flags
-CC = g++
-CFLAGS = -Wall -Wextra -O2
-PTHREAD = -pthread
+CXX = g++
+CXXFLAGS = -Wall -Wextra -O2
+LDFLAGS = -pthread -lrt
 
 # Source files
 INC = include
@@ -27,12 +27,12 @@ all: minisched_daemon minisched_client
 # For Daemon executable
 DAEMON_SRCS = $(IPC_SRCS) $(CONFIG_SRCS) $(JOB_SRCS) apps/daemon/main_daemon.cpp
 minisched_daemon: $(DAEMON_SRCS) $(ALL_INCS)
-	$(CC) $(CFLAGS) $(PTHREAD) -o minisched_daemon $(DAEMON_SRCS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o minisched_daemon $(DAEMON_SRCS)
 
 # For Client executable
 CLIENT_SRCS = $(IPC_SRCS) $(CONFIG_SRCS) apps/client/main_client.cpp
 minisched_client: $(CLIENT_SRCS) $(ALL_INCS)
-	$(CC) $(CFLAGS) $(PTHREAD) -o minisched_client $(CLIENT_SRCS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o minisched_client $(CLIENT_SRCS)
 
 # Clean up the executables
 clean:

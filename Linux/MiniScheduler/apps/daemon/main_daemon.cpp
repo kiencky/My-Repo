@@ -1,5 +1,5 @@
 //==================================================================================================================
-// main.cpp
+// main_daemon.cpp
 // Note: Main daemon process for the MiniScheduler project.
 //       Running in background, initialize the IPC(Unix domain socket).
 // Flow: Create socket -> Listen client -> Connect(accept) client -> Read from client -> Close socket
@@ -381,6 +381,11 @@ int main()
                 }
 
                 pthread_mutex_unlock(&g_scheduler->queue.mutex);
+            } else if( strncmp(c_buffer, "STOP", 4) == 0 ) {
+            // Handle the "STOP" command to gracefully shutdown the daemon.
+                log_out("[%s][%s:%d] Handling STOP command...\n", __FILE__,__func__,__LINE__);
+                g_running = 0;
+                strncpy(resp, "STOPPING DAEMON\n", sizeof(resp) - 1);
             } else {
             // If the command is invalid, send an "UNKNOWN_CMD" response.
                 log_error("[%s][%s:%d] UNKNOWN COMMAND: %s\n", __FILE__,__func__,__LINE__, c_buffer);
