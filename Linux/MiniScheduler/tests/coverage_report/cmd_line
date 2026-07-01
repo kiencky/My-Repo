@@ -1,0 +1,1 @@
+genhtml minischeduler_clean.info --output-directory coverage_report

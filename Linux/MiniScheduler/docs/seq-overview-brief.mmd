@@ -1,0 +1,148 @@
+
+%% diagramMarginX: Left and right outer margin of the whole diagram.
+%% diagramMarginY: Top and bottom outer margin of the whole diagram.
+%% actorMargin: Horizontal spacing between participants (lifelines).
+%% width: Participant box width.
+%% height: Participant box height.
+%%{init: {"sequence": {
+"diagramMarginX": 40,
+"diagramMarginY": 30,
+"actorMargin": 130,
+"width": 180,
+"height": 65
+}}}%%
+
+sequenceDiagram
+#   autoNumber
+    participant User
+    participant Client
+    participant Daemon
+    participant Config
+    participant SS as Shared Scheduler
+    participant Queue as Job Queue
+    participant Workers
+
+# SETUP PHASE
+    Note over User, Workers: SETUP PHASE
+
+    User->>+Daemon: ./minisched_daemon
+    Daemon->>+Config: config_load(config_file)
+    Config->>Config: parse socket_path, num_workers
+    Config-->>-Daemon: config
+    Daemon->>+SS: shm_scheduler_create()
+    SS->>SS: create shared memory object
+    SS->>+Queue: job_queue_init()
+    Queue->>Queue: init mutex, cond attribute
+    Queue->>Queue: init mutex, cond
+    Queue-->>-SS: return 0
+    SS-->>-Daemon: scheduler
+    Daemon->>Daemon: fork_workers(config.num_workers)
+    Daemon->>Daemon: ipc_server_listen(config.socket_path)
+
+# ADD COMMAND
+    Note over User, Workers: ADD COMMAND
+
+    User->>+Client: ./minisched_client ADD "command"
+    Client->>Client: ipc_client_connect(socket_path)
+    Client->>Daemon: send msg "ADD command"
+    Daemon->>Daemon: ipc_server_accept()
+    Daemon->>SS: pthread_mutex_lock()
+
+    activate SS
+    Daemon->>SS: job_queue_push(queue, job)
+    SS->>+Queue: push job to queue
+    Queue-->>-SS: return
+    Daemon->>SS: pthread_mutex_unlock()
+    deactivate SS
+
+    Daemon-->>Client: Send msg "ENQUEUE JOB DONE"
+    Client-->>-User: Job added
+    Daemon->>+Workers: pthread_cond_signal()
+
+    Workers->>SS: pthread_mutex_lock()
+    activate SS
+    Workers->>SS: job_queue_pop()
+    SS->>+Queue: pop job from queue
+    Queue-->>-SS: job
+    SS-->>Workers: job
+    Workers->>SS: state = RUNNING, pid = getpid()
+    Workers->>SS: pthread_mutex_unlock()
+    deactivate SS
+
+    Workers->>Workers: system(command)
+
+    activate SS
+    Workers->>-SS: state = DONE/FAILED
+    deactivate SS
+
+# STATUS COMMAND
+    Note over User, Workers: STATUS COMMAND
+
+    User->>+Client: ./minisched_client STATUS
+    Client->>Client: ipc_client_connect(socket_path)
+    Client->>Daemon: send msg "STATUS"
+    Daemon->>Daemon: ipc_server_accept()
+    Daemon->>+SS: scheduler_stats_update()
+    SS-->>-Daemon: job stats
+    Daemon-->>Client: send msg "TOTAL/DONE/FAILED/RUNNING/PENDING"
+    Client-->>-User: TOTAL/DONE/FAILED/RUNNING/PENDING
+
+# STOP COMMAND
+    Note over User, Workers: STOP COMMAND
+
+    User->>+Client: ./minisched_client stop
+    Client->>Client: ipc_client_connect(socket_path)
+    Client->>Daemon: send msg "STOP"
+    Daemon->>Daemon: ipc_server_accept()
+    Daemon-->>Client: send msg "Handling STOP"
+    Client-->>-User: Handling STOP
+
+    Note over Daemon, Workers: GRACEFUL SHUTDOWN
+    Daemon->>+SS: shutting_down = 1
+    Daemon->>Queue: pthread_mutex_lock()
+
+    activate Queue
+    Daemon->>+Workers: pthread_cond_broadcast()
+    Daemon->>Queue: pthread_mutex_unlock()
+    deactivate Queue
+
+    Workers-->>-Daemon: exit (all worker processes)
+    Daemon->>SS: shm_scheduler_destroy()
+    SS->>Queue: pthread_mutex_destroy()
+
+    activate Queue
+    SS->>Queue: pthread_cond_destroy()
+    deactivate Queue
+
+    SS->>SS: munmap(scheduler), shm_unlink(shm_path)
+    SS-->>-Daemon: return 0
+    Daemon->>Daemon: unlink(socket_path)
+    Daemon-->>-User: Return 0
+
+# SIGNAL HANDLE
+    Note over User, Workers: HANDLE SIGNAL
+
+    User->>+Daemon: SIGINT/SIGTERM
+    Daemon->>Daemon: g_running = 0
+    Daemon->>Daemon: Exit IPC coonect loop
+    Note over Daemon, Workers: GRACEFUL SHUTDOWN
+    Daemon->>+SS: shutting_down = 1
+    Daemon->>Queue: pthread_mutex_lock()
+
+    activate Queue
+    Daemon->>+Workers: pthread_cond_broadcast()
+    Daemon->>Queue: pthread_mutex_unlock()
+    deactivate Queue
+
+    Workers-->>-Daemon: exit (all worker processes)
+    Daemon->>SS: shm_scheduler_destroy()
+    SS->>Queue: pthread_mutex_destroy()
+
+    activate Queue
+    SS->>Queue: pthread_cond_destroy()
+    deactivate Queue
+
+    SS->>SS: munmap(scheduler), shm_unlink(shm_path)
+    SS-->>-Daemon: return 0
+    Daemon->>Daemon: unlink(socket_path)
+    Daemon-->>-User: Return 0
