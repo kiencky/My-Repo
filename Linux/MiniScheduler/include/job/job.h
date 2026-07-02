@@ -10,7 +10,7 @@
 #include <time.h>
 #include <pthread.h>
 
-#include "../../include/ipc/protocol.h"
+#include "../../include/ipc/def.h"
 
 // Job state.
 typedef enum {

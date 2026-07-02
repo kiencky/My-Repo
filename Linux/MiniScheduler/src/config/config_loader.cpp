@@ -11,7 +11,7 @@
 
 #include "../../include/config/config.h"
 #include "../../include/config/config_loader.h"
-#include "../../include/ipc/protocol.h"
+#include "../../include/ipc/def.h"
 
 //----------------------------------------------------------
 // Note: Parse file_path config file into config.

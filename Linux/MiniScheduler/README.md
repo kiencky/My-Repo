@@ -42,7 +42,7 @@ MiniScheduler/
 „ ?? „ ?? „¥„Ÿ„Ÿ config.h            // Config structure and definations.
 „ ?? „ ?? „¤„Ÿ„Ÿ config_loader.h     // Parse config file.
 „ ?? „¥„Ÿ„Ÿ ipc
-„ ?? „ ?? „¥„Ÿ„Ÿ protocol.h
+„ ?? „ ?? „¥„Ÿ„Ÿ def.h               // Defination.
 „ ?? „ ?? „¤„Ÿ„Ÿ unix_socket.h       // Unix domain socket.
 „ ?? „¤„Ÿ„Ÿ job
 „ ??     „¤„Ÿ„Ÿ job.h               // Job's data structure v? job handlings.
@@ -58,9 +58,12 @@ MiniScheduler/
 „ ??     „¤„Ÿ„Ÿ job_queue.cpp
 „¤„Ÿ„Ÿ tests
 „    „¥„Ÿ„Ÿ Makefile                // Build rules for testing.
-„    „¥„Ÿ„Ÿ main.cpp
+„    „¥„Ÿ„Ÿ main.cpp                // UT case.
 „    „¤„Ÿ„Ÿ mock.h
-„¥„Ÿ„Ÿ Makefile                    // Build rules.
+„¥„Ÿ„Ÿ build                   
+„    „¥„Ÿ„Ÿ Makefile                // Build rules for project.
+„    „¥„Ÿ„Ÿ minisched_daemon        // Executable file.
+„    „¤„Ÿ„Ÿ minisched_client
 „¤„Ÿ„Ÿ README.md
 
 # 4. Build
@@ -72,54 +75,40 @@ MiniScheduler/
     ./minisched_client
 
 # 5. Configuration
-File: config/minisched.conf
+- File: config/minisched.conf
 
 num_workers=4                       // Max worker processes.
 socket_path=/tmp/minisched.sock     // Path c?a object Unix domain socket.
 
 # 6. Usage Instructions
-# 6.1 Start daemon
+## 6.1 Start daemon
 ./minisched_daemon
 
 ## 6.2 G?i job
 ./minisched_client add "ls -l"
 ./minisched_client add "sleep 3"
 
-## 6.3 Xem tr?ng th?i + th?ng k?
+## 6.3 Xem tr?ng th?i + job stats
 ./minisched_client status
 
 ## 6.4 D?ng daemon graceful
 ./minisched_client stop
-or pkill -15 -f minisched_daemon
+- Ho?c: pkill -15 -f minisched_daemon
 
 # 7. Logging
 - Log output: "logs/minisched_*.log"
-- Log output command: "logs/minisched_*_cmd.log"
+- Log command output: "logs/minisched_*_cmd.log"
 
 # 8. Unit test (gtest/gmock)
-Project ?? c? test scaffold trong "tests/":
-- "config_loader_test.cpp"
-- "job_queue_test.cpp"
-- mock logger trong "tests/mocks/"
-
-## 8.1 Ch?y test b?ng Makefile
+## 8.1 Ch?y test
 cd tests
-make test
+make all
 
-## 8.2 Ch?y coverage b?ng Makefile
+## 8.2 Ch?y coverage
 cd tests
 make coverage
 
-K?t qu? coverage HTML: "tests/coverage.html"
-
-## 8.3 Ch?y test b?ng CMake
-cd tests
-cmake -S . -B build
-cmake --build build
-ctest --test-dir build --output-on-failure
-cmake --build build --target coverage
-
-Coverage HTML (CMake target): "tests/build/coverage.html"
+- K?t qu? coverage: "tests/coverage_report/index.html"
 
 # 9. Debug command
 - Xem process:
@@ -127,9 +116,9 @@ ps -ef
 ps aux | grep minisched
 
 - Kill process:
-kill -9 <pid>               // Force kill
-kill -15 <pid>              // Graceful kill
-pkill -f minisched_daemon   // Kill all processes
+kill -9 <pid>                   // Force kill
+kill -15 <pid>                  // Graceful kill
+pkill -f minisched_daemon       // Kill all processes
 
 - Xem log realtime:
 tail -f logs/minisched_*.log

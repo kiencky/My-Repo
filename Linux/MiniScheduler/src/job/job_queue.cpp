@@ -9,7 +9,7 @@
 #include <unistd.h>
 
 #include "../../include/job/job.h"
-#include "../../include/ipc/protocol.h"
+#include "../../include/ipc/def.h"
 
 ///-------------------------------------------
 // Note: Initialize the job queue.

@@ -15,7 +15,7 @@ using ::testing::Exactly;
 
 MockLogger *g_mockLogger = nullptr;
 
-// Mock implementations (C++ linkage to match protocol.h)
+// Mock implementations (C++ linkage to match def.h)
 void log_error(const char *fmt, ...)
 {
     (void)fmt;

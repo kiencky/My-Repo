@@ -30,3 +30,26 @@
 ID  PID     STATE           CREATED TIME            STARTED TIME            FINISHED TIME           COMMAND
 1   6552    DONE            2026-06-28 15:01:16     2026-06-28 15:01:16     2026-06-28 15:01:16     ls -l
 
+[Log][main_daemon.cpp][handle_signal:191] Temination signal received, shutting down the daemon...
+[Log][main_daemon.cpp][handle_signal:191] Temination signal received, shutting down the daemon...
+[Log][main_daemon.cpp][handle_signal:191] Temination signal received, shutting down the daemon...
+[Log][main_daemon.cpp][handle_signal:191] Temination signal received, shutting down the daemon...
+[Log][main_daemon.cpp][handle_signal:191] Temination signal received, shutting down the daemon...
+[Error][unix_socket.cpp][ipc_server_accept:461] accept error
+: Interrupted system call
+[Error][main_daemon.cpp][main:264] Failed to accept client connection
+: Interrupted system call
+[Log][main_daemon.cpp][main:403] Gracefully shutting down ...
+[Log][main_daemon.cpp][worker_process_main:107] Worker [PID: 6552] shutting down.
+[Log][main_daemon.cpp][worker_process_main:182] Worker process [PID: 6552] exiting.
+[Log][main_daemon.cpp][worker_process_main:107] Worker [PID: 6553] shutting down.
+[Log][main_daemon.cpp][worker_process_main:107] Worker [PID: 6555] shutting down.
+[Log][main_daemon.cpp][worker_process_main:182] Worker process [PID: 6553] exiting.
+[Log][main_daemon.cpp][main:417] Worker [PID: 6552] exited with status 0
+[Log][main_daemon.cpp][worker_process_main:182] Worker process [PID: 6555] exiting.
+[Log][main_daemon.cpp][worker_process_main:107] Worker [PID: 6554] shutting down.
+[Log][main_daemon.cpp][main:417] Worker [PID: 6553] exited with status 0
+[Log][main_daemon.cpp][worker_process_main:182] Worker process [PID: 6554] exiting.
+[Log][main_daemon.cpp][main:417] Worker [PID: 6554] exited with status 0
+[Log][main_daemon.cpp][main:417] Worker [PID: 6555] exited with status 0
+[Log][main_daemon.cpp][main:427] MiniScheduler daemon exited.

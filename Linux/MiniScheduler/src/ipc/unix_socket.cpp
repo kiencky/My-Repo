@@ -17,8 +17,9 @@
 #include <stdarg.h>
 #include <time.h>
 #include <sys/mman.h>
+#include <libgen.h>
 
-#include "../../include/ipc/protocol.h"
+#include "../../include/ipc/def.h"
 #include "../../include/ipc/unix_socket.h"
 
 // Structure to hold the log path in shared memory.
@@ -178,10 +179,13 @@ int get_absolute_log_path(char *log_path, size_t max_length)
             strncpy(c_log_path, MINISCHED_TEMP_LOG_FILEPATH, sizeof(c_log_path) - 1);
             c_log_path[sizeof(c_log_path) - 1] = '\0';
         } else {
-        // Create a new log path based on the current working directory.
+        // Create a log path based on the current working directory.
+            char parent_buf[512] = {0};
+            strncpy(parent_buf, cwd, sizeof(parent_buf) - 1);
+            char *parent_dir = dirname(parent_buf);
             char current_time[32] = {0};
             get_local_time_string(current_time, sizeof(current_time), time(NULL), LOCAL_TIME_FORMAT_INT);
-            snprintf(c_log_path, sizeof(c_log_path), MINISCHED_LOG_FILEPATH, cwd, current_time);
+            snprintf(c_log_path, sizeof(c_log_path), MINISCHED_LOG_FILEPATH, parent_dir, current_time);
 
             // Write the new log path to the shared memory.
             if( write_log_path_shm(c_log_path) == -1 ) {
@@ -210,7 +214,7 @@ int write_log_path_shm(const char* file_path)
 {
     printf("[%s][%s:%d] Writing log path to shared memory: %s\n",__FILE__,__func__,__LINE__, file_path);
 
-    if( file_path == NULL && file_path[0] == '\0') {
+    if( file_path == NULL || file_path[0] == '\0') {
         log_error("[%s][%s:%d] Invalid file path\n",__FILE__,__func__,__LINE__);
         return -1;
     }
@@ -418,7 +422,7 @@ int UnixSocket::ipc_recv_line(int fd, char *buffer, size_t max_length)
 int MainDaemon::ipc_server_listen(const char *socket_path)
 {
     // Create a Unix domain socket.
-    // AF_UNIX specifies Unix domain sockets, SOCK_STREAM indicates a stream-oriented socket (like TCP), 0 to use the default protocol.
+    // AF_UNIX specifies Unix domain sockets, SOCK_STREAM indicates a stream-oriented socket (like TCP), 0 to use the default def.
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd == -1) {
         log_error("[%s][%s:%d] create socket error\n",__FILE__,__func__,__LINE__);
@@ -656,7 +660,7 @@ MainClient* MainClient::newInstance()
 int MainClient::ipc_client_connect(const char *socket_path)
 {
     // Create a Unix domain socket.
-    // AF_UNIX specifies Unix domain sockets, SOCK_STREAM indicates a stream-oriented socket (like TCP), 0 to use the default protocol.
+    // AF_UNIX specifies Unix domain sockets, SOCK_STREAM indicates a stream-oriented socket (like TCP), 0 to use the default def.
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if( fd == -1 ) {
         log_error("[%s][%s:%d] create socket error\n",__FILE__,__func__,__LINE__);

@@ -10,7 +10,7 @@
 #include <stdlib.h>
 
 #include "../../include/ipc/unix_socket.h"
-#include "../../include/ipc/protocol.h"
+#include "../../include/ipc/def.h"
 #include "../../include/config/config.h"
 #include "../../include/config/config_loader.h"
 

@@ -1,0 +1,825 @@
+================================System Design============================
+
+1.. Requirement Analysis (FR + NFR + scope + out-of-scope)
+2.. High-Level Architecture (components, process model, IPC choice)
+3.. Data Structure & State Machine
+4. Module Design (interfaces, ownership, boundaries)
+5.. IPC & Protocol Design (request/response schema, error codes, versioning)
+6. Data Flow (normal + failure paths)
+7. Sequence Diagram (add/status/stop/startup/shutdown)
+8.. Concurrency Design (mutex/cond/semaphore, lock order, contention points)
+9.. Error Handling & Recovery Policy
+10. Logging & Observability (log format, level, metrics)
+11. Directory Structure & Coding Standards
+12.. Test Strategy + Definition of Done per milestone
+13. Coding & Incremental Integration
+
+1. Requirement Analysis (FR + NFR + scope + out-of-scope)
+ ● Chức năng: Xác định chính xác bài toán, mục tiêu và ranh giới hệ thống.
+ ● Bối cảnh: Nếu yêu cầu mơ hồ, toàn bộ thiết kế và code phía sau dễ lệch hướng và phải làm lại.
+ ● Thực hiện:
+	Liệt kê FR: hệ thống phải làm gì.
+	Liệt kê NFR: hiệu năng, độ tin cậy, bảo mật, môi trường, ràng buộc kỹ thuật.
+	Xác định scope: phạm vi chức năng/thành phần sẽ làm.
+	Xác định out-of-scope: những phần không làm hoặc do hệ thống khác phụ trách.
+
+■ Detail:
+ ● FR (Functional Requirements)(Tính năng):
+	+ Client gửi job: gửi request tạo job (command + args), nhận lại job_id.
+	+ Scheduler nhận job: validate, đưa job vào queue với trạng thái PENDING, từ chối nếu queue đầy.
+	+ Worker xử lý job: lấy job từ queue, chạy command, cập nhật trạng thái RUNNING → SUCCESS / FAILED, lưu thời gian + exit code.
+	+ User xem status: gửi request với job_id, nhận trạng thái (PENDING/RUNNING/SUCCESS/FAILED/CANCELLED) và info cơ bản.
+	+ User stop job: gửi yêu cầu theo job_id, nếu job đang chạy thì dừng và chuyển sang CANCELLED.
+	+ User stop scheduler: gửi lệnh shutdown, scheduler ngừng nhận job mới, xử lý nốt hoặc dừng toàn bộ job đang chạy (tùy chế độ).
+
+ ● NFR (Non-Functional Requirements)(Chất lượng):
+	+ Performance: các lệnh add/status/stop phản hồi nhanh; xử lý được nhiều job mà không chậm hoặc treo.
+	+ Reliability: không bị crash khi gặp input sai, command lỗi, hoặc job chạy lâu/hay fail.
+	+ Resources: không dùng CPU/RAM bất thường khi idle
+	+ Portability : chạy ổn định trên Linux, tương thích POSIX
+	+ Observability: có log đủ để debug khi lỗi (thời gian, job_id, trạng thái, message lỗi).
+
+ ● Target:
+	+ Xây dựng một hệ thống quản lý và giám sát job chạy trên Linux.
+	+ Có một daemon scheduler chạy nền, nhận job từ client.
+	+ Nhiều worker process/thread xử lý job song song.
+	+ Giao tiếp qua IPC (socket/message queue) và shared memory.
+	+ Có CLI client để thêm job, xem trạng thái, quản lý worker.
+	+ Có logging và file storage để lưu kết quả và nhật ký
+
+ ● Feature:
+	● Scheduler Daemon (minischedd)
+		- Chạy nền, khởi tạo IPC, shared memory, worker.
+		- Nhận job từ client.
+		- Quản lý hàng đợi job.
+		- Phân phối job cho worker.
+		
+		- Chi tiết:
+			・ Khởi động:
+				Daemon hóa (fork, setsid, đóng stdio, tạo pidfile).
+				đọc config (số worker, đường dẫn log, socket path).
+			・ Khởi tạo:
+				Unix domain socket (hoặc FIFO) cho client.
+				Shared memory (job queue & statistics).
+				Synchronization primitives (mutex, cond var / semaphore).
+				Worker process.
+			・ Vòng lặp chính:
+			・ Lắng nghe lệnh từ client:
+				ADD_JOB: thêm job vào queue.
+				STATUS: trả danh sách job + thống kê.
+				STOP: shutdown sạch (giết worker, free resource).
+			・ Xử lý signal:
+				SIGCHLD: thu gom zombie.
+				SIGTERM/SIGINT: tắt daemon.
+			・ Logging:
+				Ghi log sự kiện vào file:
+				daemon start/stop.
+				worker start/exit.
+				job start/done/fail.
+
+	● Client CLI (minisched_client)
+		- Gửi command đến daemon qua Unix domain socket hoặc FIFO.
+		- Gửi job mới.
+		- Liệt kê job và trạng thái.
+		- Dừng/khởi động lại worker.
+
+		- Chi tiết:
+			・ CLI đơn giản:
+				minisched_client add "command string"
+				minisched_client status
+				minisched_client stop
+			・ Giao thức:
+			・ Gửi struct/JSON text qua Unix socket:
+				{type: ADD_JOB, cmd: "..."}
+				{type: STATUS}
+				{type: STOP}
+			・ Nhận response text hoặc struct.
+
+	● Worker Process/Thread
+		- Nhận job từ scheduler.
+		- Thực thi job (ví dụ: chạy script, xử lý dữ liệu).
+		- Báo trạng thái (running, done, failed).
+		- Cập nhật kết quả vào shared memory.
+
+		- Chi tiết:
+			・ Mô hình đơn giản (giai đoạn đầu):
+			・ Mỗi worker là 1 process.
+			・ Worker lấy job từ shared memory job queue:
+				Sử dụng mutex + condition variable để chờ job mới.
+			・ Thực thi job:
+				Option 1: system(job->command)
+				Option 2: fork + exec (nâng cao).
+			・ Cập nhật job state:
+				JOB_RUNNING → JOB_DONE/JOB_FAILED.
+			・ Optional:
+				Worker có thread riêng để đọc log hoặc làm nhiều tác vụ phụ.
+
+2. High-Level Architecture (components, process model, IPC choice)
+ ● Chức năng: Tạo khung tổng thể hệ thống để định hướng mọi thiết kế chi tiết.
+ ● Bối cảnh: Không có kiến trúc mức cao thì các quyết định cục bộ dễ mâu thuẫn nhau.
+ ● Thực hiện:
+	Xác định các thành phần chính và vai trò.
+	Chọn mô hình triển khai / process model phù hợp (process, thread, service, …).
+	Chọn cách giao tiếp giữa các thành phần (sync/async, HTTP, MQ, …) và vẽ sơ đồ khối.
+
+■ Detail:
+ ● Components
+	- CLI Client: nhận lệnh add/status/stop, gửi request, hiển thị kết quả.
+	- Scheduler (daemon): giữ job queue, phân job, theo dõi trạng thái.
+	- Workers: thực thi command, trả về kết quả cho Scheduler.
+
+ ● Process model
+	- Client gọi → Scheduler tạo job / trả trạng thái / gửi tín hiệu stop → worker thực thi và cập nhật state.
+	
+ ● IPC
+	- UNIX domain socket
+
+		   	 +----------------+
+		   	 |   CLI Client   |
+		   	 +----------------+
+                      |
+                      |
+				  Unix Socket
+                      |
+                      v
+      +------------------------------+
+      |       Scheduler Daemon       |
+      +------------------------------+
+				|              |
+				|              |
+				v              v
+		  Shared Memory      Logger
+				|
+		-----------------
+		|       |       |
+		v       v       v
+	Worker1 Worker2 Worker3
+
+3. Data Structure & State Machine
+ ● Chức năng: Định nghĩa mô hình dữ liệu lõi và vòng đời trạng thái của job.
+ ● Bối cảnh: Scheduler là hệ thống hướng trạng thái; trạng thái không rõ sẽ sinh bug logic và race condition
+ ● Thực hiện:
+	- Xác định entity chính, trường dữ liệu, quan hệ dữ liệu.
+	- Định nghĩa state và luật chuyển trạng thái cho các entity cần quản lý vòng đời.
+
+■ Detail:
+ ● Data structure:
+	enum JobState
+	{
+		PENDING,
+		RUNNING,
+		SUCCESS,
+		FAILED,
+		CANCELLED
+	};
+
+	struct Job
+	{
+		int id;
+		std::string command;
+		JobState state;
+		time_t created_at;
+		time_t started_at;
+		time_t finished_at;
+	};
+
+4. Module Design (interfaces, ownership, boundaries)
+ ● Chức năng: Chia hệ thống thành các module có trách nhiệm rõ và giao diện ổn định.
+ ● Bối cảnh: Thiếu ranh giới module sẽ gây coupling cao, khó mở rộng và khó sửa lỗi.
+ ● Thực hiện:
+	- Chia hệ thống thành các module theo trách nhiệm.
+	- Định nghĩa interface mỗi module và ownership dữ liệu.
+	- Quy định quan hệ dependency giữa các module.
+
+■ Detail:
+ ● CLI Client
+	- Việc: parse args, gửi lệnh add/status/stop tới Scheduler, in kết quả.
+	- Interface: parse_args(), build_request(), print_response(), giao tiếp qua IPC.
+	- Ownership: chỉ giữ request/response tạm thời.
+ ● IPC Layer
+	- Việc: gửi/nhận message giữa Client và Scheduler, ẩn chi tiết socket/pipe.
+	- Interface: send_request(), start_server(on_message).
+	- Ownership: kết nối, retry, timeout; không giữ business job.
+ ● Scheduler Core
+	- Việc: quản lý job (queue, state), xử lý lệnh add/status/stop, phân job cho worker.
+	- Interface: add_job(), get_status(), stop_job(), request_job(), update_job_state().
+	- Ownership: JobQueue, JobTable, toàn bộ state job trong RAM.
+ ● Worker Manager
+	- Việc: tạo worker, chạy command, trả kết quả (exit code, error).
+	- Interface: vòng lặp get_and_run_job(), callback on_job_finished().
+	- Ownership: process/thread thực thi, handle/PID, không sở hữu Job.
+
+5. IPC & Protocol Design (request/response schema, error codes, versioning)
+ ● Chức năng: Tạo ra một “hợp đồng” giao tiếp rõ ràng giữa client và daemon:
+ ● Bối cảnh: Client ↔ daemon giao tiếp chính là “API nội bộ”. Nếu thiết kế tùy tiện, mở rộng khó, debug khó, dễ mismatch khi thay đổi.
+ ● Thực hiện:
+	- Chọn kiểu và công nghệ giao tiếp (HTTP, gRPC, message queue, …).
+	- Định nghĩa request/response schema và error code.
+	- Quy ước timeout, retry, versioning và backward compatibility.
+
+■ Detail:
+ ● IPC
+	- UNIX domain socket
+
+6. Data Flow (normal + failure paths)
+ ● Chức năng: Mô tả luồng dữ liệu đầu cuối trong cả trường hợp bình thường và lỗi.
+ ● Bối cảnh: Cần biết dữ liệu và trạng thái đi qua hệ thống thế nào trong các kịch bản khác nhau, cả bình thường lẫn lỗi.
+ ● Thực hiện:
+	Vẽ flow cho các use case chính (happy case).
+	Bổ sung flow cho các failure path quan trọng và cách hệ thống phản ứng.
+
+■ Detail:
+ ● Flow
+	1. User gõ lệnh trên terminal (client).
+	2. Client gửi request tạo job tới Daemon qua IPC (Unix socket / pipe / shared memory + signal).
+	3. Daemon:
+		Lưu job vào job queue (trong shared memory / RAM).
+		Phân công job cho worker process rảnh.
+	4. Worker:
+		fork/exec chạy lệnh thực (vd: ffmpeg ...).
+		Theo dõi kết quả, cập nhật trạng thái job.
+	5. Daemon:
+		Ghi log, cập nhật state (PENDING → RUNNING → DONE/FAILED).
+		Trả information cho client khi cần (status, detail…).
+	6. User:
+		Xem trạng thái / log qua client (status, show).
+		Khi xong thì stop daemon nếu muốn.
+
+
+	● Khi add job
+		・ User → Client: add ...
+		・ Client → Daemon: request ADD_JOB.
+		・ Daemon:
+			Push job vào queue.
+			Signal worker.
+		・ Worker:
+			Pop job.
+			Chạy ffmpeg (fork/exec).
+	● Cập nhật trạng thái.
+		・ Khi status
+		・ User → Client: status.
+		・ Client → Daemon: request GET_STATUS.
+		・ Daemon:
+			Đọc shared memory.
+			Trả list job + state.
+		・ Client:
+			Render bảng trạng thái.
+	● Khi stop
+		・ User → Client: stop.
+		・ Client → Daemon: request SHUTDOWN.
+		・ Daemon:
+			Đặt cờ shutdown.
+			Đợi/kill job.
+			Cleanup & exit.
+
+	6. Flow chi tiết
+
+	6.1.  Khởi động daemon
+	● User:
+		Chạy: minisched_daemon &
+
+	● Flow:
+	 - Daemon khởi động:
+		・ Tạo (hoặc attach) shared memory chứa:
+			Danh sách job.
+			Thông tin worker.
+			Config (num_workers, trạng thái chung).
+		・ Khởi tạo primitive đồng bộ:
+			mutex.
+			condition variable.
+		・ Fork/spawn N worker process (ví dụ: 2 worker).
+	 - Worker process:
+		・ Vào vòng lặp vô hạn:
+			Lock mutex.
+			Nếu queue rỗng: chờ trên condition variable.
+			Khi được đánh thức và có job:
+				Lấy một job PENDING từ queue.
+				Đặt state job = RUNNING.
+				Ghi time started_at.
+				Unlock mutex.
+		・ Chạy job:
+			fork + exec command (vd: ffmpeg) hoặc dùng system().
+			Đợi process con kết thúc, lấy exit code.
+		・ Lock mutex.
+		・ Cập nhật job:
+			state = DONE nếu exit code = 0.
+			state = FAILED nếu exit code != 0.
+			Ghi finished_at, exit_code.
+		・ Unlock mutex.
+		・ Lặp lại (quay lại bước chờ job mới).
+
+	 - Daemon main process:
+		・ Lắng nghe request từ client (qua Unix socket / pipe / IPC).
+		・ Quản lý vòng đời worker, cleanup, signal handler, v.v.
+
+	6.2. Thêm job (add media job)
+	● User:
+		Ví dụ lệnh: minisched_client add --tag audio 'bash convert_audio.sh input1.wav output1.mp3'
+
+	● Flow:
+	 - Client parse lệnh:
+		・ Loại request: ADD_JOB.
+		・ Command: bash convert_audio.sh input1.wav output1.mp3.
+		・ Tag: audio.
+		・ Priority, max_retries: dùng giá trị mặc định hoặc từ option.
+	 - Client gửi request tới daemon:
+		・ Qua Unix socket / pipe / shared memory + signal.
+		・ Nội dung dạng cấu trúc, ví dụ:
+			type = ADD_JOB.
+			command = "...".
+			tag = "audio".
+			priority = NORMAL.
+			max_retries = 0 (hoặc giá trị khác).
+	 - Daemon nhận request:
+		・ Lock mutex.
+		・ Sinh job_id mới (vd: 42).
+		・ Thêm job vào queue trong shared memory:
+			job_id = 42.
+			cmd = bash convert_audio.sh input1.wav output1.mp3.
+			tag = audio.
+			state = PENDING.
+			created_at = thời điểm hiện tại.
+		・ Unlock mutex.
+		・ Đánh thức worker:
+			signal/broadcast condition variable để báo “có job mới”.
+		・ Gửi response lại cho client:
+			Ví dụ: OK job_id=42.
+	 - Client in kết quả cho user:
+		・ Ví dụ: Job 42 added (tag=audio).
+
+	6.3. Worker pick job và chạy ffmpeg
+	Ngay sau khi daemon thêm job vào queue:
+	 - Worker đang chờ trên condition variable được đánh thức:
+		・ Lock mutex.
+		・ Tìm job PENDING trong queue (có thể theo FIFO hoặc theo priority).
+		・ Gán job đó cho worker:
+			Đặt state = RUNNING.
+			Ghi started_at.
+		・ Unlock mutex.
+	 - Worker thực thi command của job:
+		・ Gọi fork():
+			Process con gọi execve() để chạy command thật, ví dụ:
+				/bin/bash convert_audio.sh input1.wav output1.mp3.
+			Process cha (worker) gọi waitpid() để đợi con.
+		・ Sau khi process con kết thúc:
+			Lấy exit code (0 = thành công, khác 0 = lỗi).
+	 - Worker cập nhật trạng thái job:
+		・ Lock mutex.
+		・ Nếu exit code = 0:
+			state = DONE.
+		・ Nếu exit code != 0:
+			state = FAILED.
+		・ Ghi finished_at, exit_code, error_message (nếu có).
+		・ Unlock mutex.
+	 - Worker quay lại vòng lặp để đợi hoặc nhận job mới.
+
+	6.4. Xem trạng thái (status)
+	● User:
+		Ví dụ lệnh: minisched_client status
+		hoặc: minisched_client status --tag audio
+		
+	● Flow:
+	 - Client parse lệnh:
+		・ Loại request: GET_STATUS.
+		・ Nếu có option --tag, thêm filter tag = audio.
+	 - Client gửi request tới daemon:
+		・ type = GET_STATUS.
+		・ filter_tag = "audio" (nếu có).
+	 - Daemon xử lý:
+		・ Lock mutex.
+		・ Copy danh sách job từ shared memory sang một buffer tạm (để không giữ mutex quá lâu).
+		・ Unlock mutex.
+		・ Áp dụng filter (tag, state, v.v. nếu có).
+		・ Format dữ liệu thành bảng/struct:
+			job_id, tag, state, command, created_at, started_at, finished_at, exit_code.
+	 - Daemon gửi kết quả cho client.
+	 - Client in ra màn hình:
+		・ Ví dụ: ID TAG STATE CMD 42 audio RUNNING bash convert_audio.sh input1.wav output1.mp3 43 video PENDING bash transcode_video.sh video1.mp4 video1_out.mp4
+
+	6.5. Dừng daemon (graceful shutdown)
+	● User:
+		Lệnh: minisched_client stop
+		
+	● Flow:
+	 - Client phân tích lệnh:
+		・ Loại request: SHUTDOWN.
+	 - Client gửi request SHUTDOWN tới daemon.
+	 - Daemon nhận request SHUTDOWN:
+		・ Đặt cờ: shutting_down = true.
+		・ Tùy chính sách shutdown (graceful hay force):
+		・ Trường hợp 1: graceful shutdown
+			・ Ngừng nhận job mới:
+				Các request ADD_JOB sau đó trả lỗi hoặc thông báo “daemon đang shutdown”.
+			・ Đợi tất cả job đang RUNNING hoàn thành:
+				Không thêm job mới vào queue.
+			・ Khi:
+				Queue trống (không còn job PENDING).
+				Không còn job RUNNING.
+			・ Thông báo cho worker thoát vòng lặp:
+				Có thể đặt một cờ global, hoặc gửi tín hiệu.
+			・ Worker thoát.
+			・ Daemon cleanup:
+				Giải phóng shared memory.
+				Destroy mutex, condition variable.
+			・ Daemon process thoát.
+		・ Trường hợp 2: force shutdown (nếu bạn hỗ trợ)
+			・ Gửi signal (SIGTERM / SIGKILL) tới các worker hoặc process con đang chạy job.
+			・ Xóa queue còn lại (hoặc đánh dấu job = CANCELLED).
+			・ Cleanup như trên.
+			・ Thoát daemon.
+	 - Client có thể in message:
+		・ Ví dụ: Shutdown signal sent.
+		・ Nếu muốn, có thể đợi daemon xác nhận đã tắt hẳn.
+
+7. Sequence Diagram (add/status/stop/startup/shutdown)
+ ● Chức năng: Mô tả trình tự tương tác các thành phần.
+ ● Bối cảnh: Cần sequence để kiểm chứng đúng thứ tự gọi, đồng bộ và điểm chờ.
+ ● Thực hiện: Vẽ/viết sequence cho các use case cốt lõi, bao gồm nhánh lỗi và điều kiện biên.
+
+■ Detail:
+ ● Use case: Chạy lệnh để convert định dạng nhiều file từ mp3->wav,...
+	- Khi chạy thủ công (không dùng scheduler):
+		+ Phải tự nhớ: file nào đã convert, file nào chưa.
+		+ Khi nhiều job, rất dễ nhầm.
+		+ Không có chỗ xem “toàn bộ job đang/chờ/chạy xong”.
+		+ Muốn biết job đã xong chưa phải nhớ PID, hoặc kiểm tra file output
+		+ Output lẫn lộn, tắt terminal là mất hết log
+
+	- Dùng scheduler:
+		+ Có một bảng trạng thái để theo dõi kết quả
+		+ Có lưu log, debug dễ hơn
+		+ Có thể giới hạn job chạy cùng lúc để không gây quá tải CPU/Memory.
+
+8. Concurrency Design (mutex/cond/semaphore, lock order, contention points)
+ ● Chức năng: Đảm bảo truy cập dữ liệu chia sẻ an toàn và hiệu quả.
+ ● Bối cảnh: Multi-worker dễ gặp deadlock, starvation, lost wakeup nếu thiết kế đồng bộ chưa chặt.
+ ● Thực hiện:
+	Xác định dữ liệu dùng chung.
+	Chọn cơ chế đồng bộ (mutex, RW-lock, cond var, …).
+	Định nghĩa lock order và các điểm dễ contention.
+
+■ Detail:
+
+9. Error Handling & Recovery Policy
+ ● Chức năng: Xác định cách hệ thống phản ứng khi lỗi để giữ tính ổn định.
+ ● Bối cảnh: Thực tế, lỗi là trạng thái bình thường: queue đầy, lệnh sai, process chết… Nếu mỗi chỗ xử lý một kiểu, hệ thống trở nên khó đoán và khó sửa.
+ ● Thực hiện:
+	Phân loại nhóm lỗi (business, system, network, …).
+	Định nghĩa chiến lược xử lý (retry, fail fast, fallback, …).
+	Thiết kế cơ chế recovery và cleanup tài nguyên.
+■ Detail:
+
+10. Logging & Observability (log format, level, metrics)
+ ● Chức năng: Cung cấp khả năng quan sát hành vi runtime của hệ thống, giúp debugging, performance tuning, và vận hành dài hạn.
+ ● Bối cảnh: Không có logging thì khó tìm root cause và khó theo dõi chất lượng hệ thống.
+ ● Thực hiện:
+	Định nghĩa format log và log levels.
+	Xác định sự kiện cần log và metrics chính.
+	Chọn công cụ quan sát phù hợp (log collector, metrics, tracing).
+■ Detail:
+
+11. Directory Structure & Coding Standards
+ ● Chức năng: Chuẩn hóa tổ chức mã nguồn và quy tắc coding
+ ● Bối cảnh: Cấu trúc repo và coding style không thống nhất sẽ khó build, khó debug
+ ● Thực hiện:
+	Thiết kế cấu trúc thư mục phù hợp với kiến trúc.
+	Đặt coding standards và code style.
+	Chuẩn hóa build/CI cơ bản.
+
+■ Detail:
+ ● Structure:
+	minisched/
+	├─ apps/
+	│  ├─ daemon/
+	│  │  └─ main.cpp                // Entry point daemon: parse args, boot DaemonService
+	│  └─ client/
+	│     └─ main.cpp                // Entry point client CLI: add/status/stop
+	├─ include/
+	│  ├─ ipc/
+	│  │  ├─ protocol.h              // Protocol constants, command types, error codes
+	│  │  └─ unix_socket.h           // Unix socket transport interface (listen/connect/send/recv)
+	│  ├─ daemon/
+	│  │  ├─ daemon_service.h        // Daemon lifecycle and request loop interface
+	│  │  ├─ pidfile.h               // PID file operations interface
+	│  │  └─ signal_handler.h        // Signal registration and handling interface
+	│  ├─ config/
+	│  │  ├─ config.h                // Runtime config model
+	│  │  └─ config_loader.h         // Config parser interface
+	│  ├─ logging/
+	│  │  └─ logger.h                // Logging interface (info/warn/error)
+	│  └─ scheduler/
+	│     ├─ job.h                   // Job model and state enum
+	│     ├─ job_queue.h             // Thread-safe/process-safe queue interface
+	│     └─ worker_pool.h           // Worker management/dispatch interface
+	├─ src/
+	│  ├─ ipc/
+	│  │  └─ unix_socket.cpp         // Unix socket implementation
+	│  ├─ daemon/
+	│  │  ├─ daemon_service.cpp      // Daemonize, server loop, command handling
+	│  │  ├─ pidfile.cpp             // PID file create/read/remove/check
+	│  │  └─ signal_handler.cpp      // SIGINT/SIGTERM/SIGCHLD behavior
+	│  ├─ client/
+	│  │  └─ client_service.cpp      // Send command, receive/parse response
+	│  ├─ config/
+	│  │  └─ config_loader.cpp       // Parse key=value config with defaults
+	│  ├─ logging/
+	│  │  └─ logger.cpp              // Logger output/format implementation
+	│  └─ scheduler/
+	│     ├─ job_queue.cpp           // Queue operations and synchronization
+	│     └─ worker_pool.cpp         // Worker lifecycle and job dispatch
+	├─ config/
+	│  └─ minisched.conf             // Default daemon configuration
+	├─ logs/                         // Runtime logs (usually gitignored)
+	├─ docs/                         // Design docs, sequence/data flow diagrams
+	├─ tests/
+	│  ├─ unit/                      // Unit tests per module
+	│  └─ integration/               // End-to-end tests
+	├─ Makefile                      // Build targets (daemon/client/test/clean)
+	└─ README.md                     // Setup, build, run, architecture notes
+
+ ● Coding Convention:
+	- Naming: snake_case
+	
+ ● Build:
+	- Build tool: Makefile
+
+12. Test Strategy + Definition of Done per milestone
+ ● Chức năng: Đảm bảo từng bước phát triển đều có cách kiểm chứng rõ ràng: test gì, pass điều kiện nào thì được coi là hoàn thành milestone.
+ ● Bối cảnh: Không có chiến lược test và định nghĩa “xong” thì rất khó kiểm soát chất lượng
+ ● Thực hiện:
+	Xác định các loại test (unit, integration, e2e, performance, …).
+	Gán DoD cho từng milestone (test phải pass, doc, review,…).
+	Lên kế hoạch tự động hóa test trong CI.
+■ Detail:
+
+13. Coding & Incremental Integration
+ ● Chức năng: Coding sản phẩm thực tế theo từng bước nhỏ, có kiểm soát rủi ro, liên tục kiểm chứng và điều chỉnh.
+ ● Bối cảnh: Triển khai module lớn có thể gây rủi ro, khó khoanh vùng khi có lỗi
+ ● Thực hiện:
+	Chia milestone nhỏ, implement dần theo kiến trúc.
+	Tích hợp và test liên tục sau mỗi phần.
+	Review theo checklist kiến trúc và cập nhật tài liệu khi thiết kế thay đổi.
+■ Detail:
+
+● Milestone 1: Core daemon + client đơn giản (no shared memory)
+- Mục tiêu:
+	・ Có daemon, client, giao tiếp cơ bản.
+
+- Implement:
+	・ minischedd:
+		Chưa daemon hóa, chỉ là process bình thường.
+		Mở Unix domain socket, nghe connection từ client.
+		Khi nhận:
+			lệnh add, chỉ in ra màn hình.
+			lệnh status, trả “OK”.
+	・ minisched_client:
+		Kết nối socket, gửi lệnh (string).
+
+	・ Có thể test:  
+		./minischedd
+		./minisched_client add "echo Hello"
+		./minisched_client status
+
+● Milestone 2: Daemon hóa + logging + config
+- Nhiệm vụ:
+	・ Biến minischedd thành daemon thực thụ.
+	・ Thêm config file (minisched.conf) để cấu hình num_workers, socket_path.
+	・ Thêm logging vào ./logs/minisched.log.
+	・ Ghi pidfile (./minisched.pid hoặc /var/run/minisched.pid).
+	
+- Implement:
+	・ daemonize():
+		fork() → parent exit.
+		setsid().
+		chdir("/"), umask(0).
+		Đóng stdin/stdout/stderr hoặc redirect vào file log.
+	・ Ghi pidfile:
+		Sau daemonize(), lấy getpid(), ghi vào minisched.pid.
+	・ Đọc config minisched.conf:
+		Parse key=value:
+			num_workers=4
+			socket_path=/tmp/minisched.sock
+		Nếu thiếu → dùng default.
+	・ Logging:
+		Mở ./logs/minisched.log ở mode append.
+		Viết hàm log_xxx() để ghi sự kiện chính (start, lỗi, client connect, xử lý lệnh).
+		
+- Kết quả (target):
+	・ minischedd chạy nền, không chiếm terminal, có PID trong minisched.pid.
+	・ Thay đổi minisched.conf → restart daemon → cấu hình mới có hiệu lực.
+	・ Hoạt động và lỗi của daemon được ghi vào ./logs/minisched.log, dùng để debug và theo dõi.
+
+● Milestone 3: Job queue in-memory + single worker
+- Mục tiêu:
+	・ Có job queue trong memory (chưa shared memory, chỉ trong daemon).
+	・ Có 1 worker thread trong daemon.
+
+- Implement:
+	・ Định nghĩa job_t và job_queue_t:
+		typedef enum {
+			 JOB_PENDING,
+			 JOB_RUNNING,
+			 JOB_DONE,
+			 JOB_FAILED
+		} job_state_t;
+
+		typedef struct {
+			 int id;
+			 char command[256];
+			 job_state_t state;
+			 pid_t worker_pid;
+			 time_t created_at;
+			 time_t started_at;
+			 time_t finished_at;
+		} job_t;
+
+		typedef struct {
+			 job_t jobs[MAX_JOBS];
+			 int head, tail;
+			 int size;
+			 pthread_mutex_t mutex;
+			 pthread_cond_t cond;
+		} job_queue_t;
+
+	・ Daemon:
+		Thread listener nhận add → push vào queue.
+		Producer-Consumer concurrency pattern.
+		Implement mutex để xử lý đồng bộ ghi và đọc job trong queue.
+	・ Thread worker:
+		chờ cond.
+		lấy job → system(job.command) → update state.
+	・ Khi request status → lấy được trạng thái đầy đủ của job gồm ID, start time, end time, cmd...
+
+● Milestone 4: Shared memory + multi-process workers
+- Mục tiêu:
+	・ Job queue chuyển sang shared memory để sau này process khác có thể đọc.
+	・ Worker tách thành process riêng do daemon fork.
+
+- Implement:
+	・ Dùng shmget + shmat:
+	・ Tạo shared memory chứa job_queue_t.
+	・ Daemon:
+		fork ra N worker process.
+	・ Worker attach shared memory, chạy vòng lặp:
+		lock mutex (trong shared memory).
+		lấy job pending.
+		unlock mutex.
+		thực thi.
+	・ Cần thiết kế mutex/cond ở shared memory:
+	・ Có thể dùng pthread_mutexattr_setpshared.
+
+- Details:
+┌───────────────────────────────────────────────────────┐
+│                   Shared Memory                       │
+│  ┌─────────────────────────────────────────────────┐  │
+│  │  pthread_mutex_t mutex  (PROCESS_SHARED)        │  │
+│  │  pthread_cond_t  cond   (PROCESS_SHARED)        │  │
+│  │  job_t jobs[MAX_JOBS]                           │  │
+│  │  int head, tail, size                           │  │
+│  │  int shutting_down                              │  │
+│  └─────────────────────────────────────────────────┘  │
+└───────────────────────────────────────────────────────┘
+        ▲               ▲               ▲
+        │               │               │
+   ┌────┴────┐    ┌─────┴─────┐    ┌────┴──────┐
+   │  Daemon │    │  Worker 0 │    │  Worker 1 │
+   │ (parent)│    │  (fork)   │    │  (fork)   │
+   └─────────┘    └───────────┘    └──────────-┘
+  
+Step	Task
+1		Create shared_job_queue_t struct with process-shared mutex/cond
+2		Daemon creates shared memory, initializes queue
+3		Convert worker_main from thread function to independent process loop
+4		Daemon forks N workers instead of pthread_create
+5		Add worker monitoring (respawn on crash) with SIGCHLD handler
+6		Graceful shutdown: signal workers, wait for exit, unlink shared memory
+
+● Milestone 5: Status command + statistics
+- Mục tiêu:
+	・ minisched_client status hiển thị:
+	・ danh sách job cơ bản.
+	・ thống kê số job done/failed.
+	
+- Implement:
+	・ Trong shared memory, thêm struct scheduler_stats_t.
+	・ Khi job update state → cập nhật stats.
+	・ Daemon khi nhận lệnh status:
+	・ đọc shared memory.
+	・ gửi về cho client (text/table).
+
+● Milestone 6: Signal handling + graceful shutdown
+- Mục tiêu:
+	・ Daemon xử lý:
+		SIGCHLD: thu gom zombie.	(Skip it because it may causes confusion with the SIGCHLD handler used by system().)
+		SIGTERM/SIGINT: shutdown gọn.
+	・ Khi minisched_client stop:
+		gửi lệnh STOP → daemon cleanup, remove pidfile, stop worker.
+		
+		
+■ BUG:
+1. Log không được lưu vào file log.
+	● Phenomenon: Log chỉ được lưu vào log trước lúc daemonize sau đó thì không được lưu
+	● Cause: Sau khi daemonize, directory path bị change thành / (để tránh việc daemon process giữ filesystem path làm process khác không unmount hoặc delete file trong directory này được)
+	 gây ra log không in được vào file chỉ định
+	● Solution: Trước khi daemonize, lấy absolute path và lưu vào global variable. Giá trị sẽ không bị thay đổi sau đó.
+
+2. Khi chạy client process file log mới được tạo và không lưu log vào file log cũ.
+	● Phenomenon: Log đã in vào file chỉ định trong folder logs nhưng khi chạy process client, log không được lưu vào file mà lại tạo và lưu vào 1 file log khác
+	● Cause: Do daemon và client là 2 process có không gian bộ nhớ riêng biệt nên client không thể lấy log path được lưu ở global variable trong daemon process.
+	● Solution: Tạo 1 shared memory để lưu data chứa log path để daemon và client có thể truy cập.
+
+3. Segmentfault khi chạy program ./minisched_daemon
+	● Phenomenon: Khi run ./minisched_daemon thì program bị crash ngay và hiển thị lỗi Segmentation Fault nhưng không có thông tin cụ thể.
+	● Cause: Do truyền sai kiểu dữ liệu trong printf("[%s-%s:%d] MiniScheduler daemon starting...\n", __FILE__,__LINE__);.
+			 Ở runtime, %s đọc giá trị __LINE__ nhưng nó là kiểu integer. Compiler sẽ implicit đọc giá trị ở địa chỉ là __LINE__ gây lỗi do không có giá trị thực tế ở địa chỉ này -> Crash
+	● Solution: Dùng gdb để debug: gdb ./minisched_daemon -> run -> backtrace để tìm vị trị bị crash và phát hiện ra do hàm printf. Sửa lại cho truyền đúng giá trị.
+
+
+
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                              MiniScheduler Architecture                             │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────┐                          ┌─────────────────────────────────────┐
+│  minisched_client    │    Unix Domain Socket    │  minisched_daemon (parent)          │
+│                      │    /tmp/minisched.sock   │                                     │
+│  argv → parse cmd    │◄────────────────────────►│  Startup:                           │
+│  "add CMD" → ADD\n   │   ADD / STATUS / STOP    │    log_path_init()                  │
+│  "status"  → STATUS\n│   ◄─── response ───      │    config_load()                    │
+│  "stop"    → STOP\n  │                          │    daemonize() → PID file           │
+│                      │                          │    sigaction(TERM/INT) no SA_RESTART│
+│  connect → send      │                          │    shm_scheduler_create()           │
+│  → recv loop         │                          │    fork_workers(N)                  │
+│  → display           │                          │    ipc_server_listen()              │
+└──────────────────────┘                          │                                     │
+                                                  │  Main Loop:                         │
+                                                  │    accept() → recv_line()           │
+                                                  │    ├─ ADD:    lock → push → signal  │
+                                                  │    │          → history → unlock    │
+                                                  │    ├─ STATUS: lock → stats → table  │
+                                                  │    │          → unlock              │
+                                                  │    └─ STOP:   g_running = 0         │
+                                                  │    send response → close(client)    │
+                                                  │                                     │
+                                                  │  Shutdown:                          │
+                                                  │    lock → shutting_down=1           │
+                                                  │    → cond_broadcast → unlock        │
+                                                  │    → waitpid(all workers)           │
+                                                  │    → shm_destroy → cleanup          │
+                                                  └─────────────────┬───────────────────┘
+                                                                    │ fork() × N
+                                                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                    /dev/shm/minisched_job_queue_shm                                 │
+│                         shared_scheduler_t (mmap'd)                                 │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│  job_queue_t             │ history_jobs[100]     │ metadata          │ stats        │
+│  ┌─────────────────────┐ │ history_jobs_size     │ worker_pids[8]    │ total        │
+│  │ jobs[100] circular  │ │ next_job_id           │ num_workers       │ pending      │
+│  │ head / tail / size  │ │                       │ shutting_down     │ running      │
+│  │ mutex (PROC_SHARED) │ │                       │                   │ completed    │
+│  │ cond  (PROC_SHARED) │ │                       │                   │ failed       │
+│  └─────────────────────┘ │                       │                   │              │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+                                        ▲
+                                        │ access via mmap (inherited from fork)
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                         Worker Processes (N forked children)                        │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                     │
+│   ┌─── Worker Loop (each process) ──────────────────────────────────────────────┐   │
+│   │                                                                             │   │
+│   │  mutex_lock()                                                               │   │
+│   │  while(empty && !shutting_down):                                            │   │
+│   │      cond_wait()          ← sleep, release mutex, re-acquire on wake        │   │
+│   │                                                                             │   │
+│   │  if(empty && shutting_down) → break → _exit(0)                              │   │
+│   │                                                                             │   │
+│   │  job_queue_pop()                                                            │   │
+│   │  history[job].state = RUNNING, pid = getpid()                               │   │
+│   │  mutex_unlock()                                                             │   │
+│   │                                                                             │   │
+│   │  ════════ system(command) — PARALLEL, NO MUTEX HELD ════════                │   │
+│   │                                                                             │   │
+│   │  mutex_lock()                                                               │   │
+│   │  history[job].state = DONE/FAILED, exit_code                                │   │
+│   │  mutex_unlock()                                                             │   │
+│   │  loop ↑                                                                     │   │
+│   └─────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                     │
+│   Worker 0 (PID: ...)   Worker 1 (PID: ...)   Worker 2 (PID: ...)   Worker 3        │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────┐    ┌──────────────────────────────┐
+│  Logging                         │    │  Config                      │
+│  logs/minisched_*.log            │    │  config/minisched.conf       │
+│  logs/minisched_*_cmd.log        │    │    socket_path=/tmp/...sock  │
+│  O_APPEND + dprintf (atomic)     │    │    num_workers=4             │
+│  No mutex needed (writes < 4KB)  │    │  Loaded by daemon + client   │
+└──────────────────────────────────┘    └──────────────────────────────┘
+
+
+
+
+
